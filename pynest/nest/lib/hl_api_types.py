@@ -858,7 +858,9 @@ class SynapseCollection:
                {'source': [1, 1, 1, 2, 2, 2, 3, 3, 3],
                 'weight': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
         """
+        import time
 
+        a = time.time()
         pandas_output = output == "pandas"
         if pandas_output and not HAVE_PANDAS:
             raise ImportError("Pandas could not be imported")
@@ -886,14 +888,21 @@ class SynapseCollection:
             cmd = "GetStatus {{ [ [ {0} ] ] get }} Map".format(keys_str)
         else:
             raise TypeError("keys should be either a string or an iterable")
-
+        b = time.time()
+        print("GetStatus command time:", b - a, "seconds")
         sps(self._datum)
+        b1 = time.time()
+        print("sps time:", b1 - b, "seconds")
         sr(cmd)
+        b2 = time.time()
+        print("sr result time:", b2 - b1, "seconds")
         result = spp()
+        c = time.time()
+        print("spp result time:", c - b2, "seconds")
 
         # Need to restructure the data.
         final_result = restructure_data(result, keys)
-
+        d = time.time()
         if pandas_output:
             index = self.get("source") if self.__len__() > 1 else (self.get("source"),)
             if is_literal(keys):
@@ -901,6 +910,11 @@ class SynapseCollection:
             final_result = pandas.DataFrame(final_result, index=index)
         elif output == "json":
             final_result = to_json(final_result)
+        e = time.time()
+
+        print("GetStatus result time:", c - b, "seconds")
+        print("Restructure data time:", d - c, "seconds")
+        print("Output formatting time:", e - d, "seconds")
 
         return final_result
 

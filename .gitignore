@@ -75,3 +75,12 @@ cscope.out
 
 # Merge conflict artifacts
 *.orig
+
+nest-install/
+test*
+venv
+models*
+doc*
+pynest
+sli
+spike_*

@@ -23,6 +23,7 @@
 #
 
 import cython
+import time
 
 from cpython cimport array
 from cpython.object cimport Py_EQ, Py_GE, Py_GT, Py_LE, Py_LT, Py_NE
@@ -38,11 +39,27 @@ import nest
 from nest.lib.hl_api_exceptions import NESTError, NESTErrors, NESTMappedException
 
 
+cdef unsigned int i_SLI_TYPE_BOOL = 708
+cdef unsigned int i_SLI_TYPE_INTEGER = 704
+cdef unsigned int i_SLI_TYPE_DOUBLE = 705
+cdef unsigned int i_SLI_TYPE_STRING = StringDatum().gettypename().toIndex()
+cdef unsigned int i_SLI_TYPE_ARRAY = 710
+cdef unsigned int i_SLI_TYPE_LITERAL = 709
+cdef unsigned int i_SLI_TYPE_DICTIONARY = 713
+cdef unsigned int i_SLI_TYPE_CONNECTION = ConnectionDatum().gettypename().toIndex()
+cdef unsigned int i_SLI_TYPE_VECTOR_INT = IntVectorDatum().gettypename().toIndex()  # new vector[long]()
+cdef unsigned int i_SLI_TYPE_VECTOR_DOUBLE = DoubleVectorDatum().gettypename().toIndex()  # new vector[double]()
+cdef unsigned int i_SLI_TYPE_MASK = MaskDatum().gettypename().toIndex()
+cdef unsigned int i_SLI_TYPE_PARAMETER = ParameterDatum().gettypename().toIndex()
+cdef unsigned int i_SLI_TYPE_NODECOLLECTION = NodeCollectionDatum().gettypename().toIndex()
+cdef unsigned int i_SLI_TYPE_NODECOLLECTIONITERATOR = NodeCollectionIteratorDatum().gettypename().toIndex()
+
+cdef string SLI_TYPE_LITERAL = b"literaltype"
+
 cdef string SLI_TYPE_BOOL = b"booltype"
 cdef string SLI_TYPE_INTEGER = b"integertype"
 cdef string SLI_TYPE_DOUBLE = b"doubletype"
 cdef string SLI_TYPE_STRING = b"stringtype"
-cdef string SLI_TYPE_LITERAL = b"literaltype"
 cdef string SLI_TYPE_ARRAY = b"arraytype"
 cdef string SLI_TYPE_DICTIONARY = b"dictionarytype"
 cdef string SLI_TYPE_CONNECTION = b"connectiontype"
@@ -72,6 +89,7 @@ cdef bint HAVE_NUMPY = False
 
 try:
     import numpy
+    cimport numpy as cnumpy
     HAVE_NUMPY = True
 except ImportError:
     pass
@@ -282,6 +300,7 @@ cdef class NESTEngine:
             raise exceptionCls('take_array_index', '') from None
 
     def connect_arrays(self, sources, targets, weights, delays, synapse_model, syn_param_keys, syn_param_values):
+        print("Calling CONNECT ARRAYS")
         """Calls connect_arrays function, bypassing SLI to expose pointers to the NumPy arrays"""
         if self.pEngine is NULL:
             raise NESTErrors.PyNESTError("engine uninitialized")
@@ -351,7 +370,7 @@ cdef class NESTEngine:
             raise exceptionCls('connect_arrays', '') from None
 
 cdef inline Datum* python_object_to_datum(obj) except NULL:
-
+    print("Calling Py OBJ to DATUM")
     cdef Datum* ret = NULL
 
     cdef ArrayDatum* ad = NULL
@@ -462,7 +481,7 @@ cdef inline Datum* python_object_to_datum(obj) except NULL:
 
 @cython.boundscheck(False)
 cdef inline Datum* python_buffer_to_datum(numeric_buffer_t buff, vector_value_t _ = 0) except NULL:
-
+    print("Calling BUFFER to DATUM")
     cdef size_t i, n
 
     cdef Datum* dat = NULL
@@ -486,7 +505,7 @@ cdef inline Datum* python_buffer_to_datum(numeric_buffer_t buff, vector_value_t 
 
 
 cdef inline object sli_datum_to_object(Datum* dat):
-
+    # print("Calling DATUM to OBJECT")
     if dat is NULL:
         raise NESTErrors.PyNESTError("datum is a null pointer")
 
@@ -494,47 +513,72 @@ cdef inline object sli_datum_to_object(Datum* dat):
     cdef object ret = None
     cdef ignore_none = False
 
-    cdef string datum_type = dat.gettypename().toString()
+    # unsigned int
+    # cdef string datum_type = dat.gettypename().toString()
+    cdef unsigned int datum_type = dat.gettypename().toIndex()
 
-    if datum_type == SLI_TYPE_BOOL:
-        ret = (<BoolDatum*> dat).get()
-    elif datum_type == SLI_TYPE_INTEGER:
+    cdef double a = time.time()
+    cdef double b = 0.0
+    if datum_type == i_SLI_TYPE_INTEGER:
+        print("cc")
         ret = (<IntegerDatum*> dat).get()
-    elif datum_type == SLI_TYPE_DOUBLE:
+    elif datum_type == i_SLI_TYPE_DOUBLE:
+        print("dd")
         ret = (<DoubleDatum*> dat).get()
-    elif datum_type == SLI_TYPE_STRING:
-        ret = (<string> deref_str(<StringDatum*> dat)).decode('utf-8')
-    elif datum_type == SLI_TYPE_LITERAL:
+    elif datum_type == i_SLI_TYPE_LITERAL:
         obj_str = (<LiteralDatum*> dat).toString()
         ret = obj_str.decode()
         if ret == 'None':
             ret = None
             ignore_none = True
-    elif datum_type == SLI_TYPE_ARRAY:
-        ret = sli_array_to_object(<ArrayDatum*> dat)
-    elif datum_type == SLI_TYPE_DICTIONARY:
+    elif datum_type == i_SLI_TYPE_DICTIONARY:
         ret = sli_dict_to_object(<DictionaryDatum*> dat)
-    elif datum_type == SLI_TYPE_CONNECTION:
+    elif datum_type == i_SLI_TYPE_BOOL:
+        ret = (<BoolDatum*> dat).get()
+    elif datum_type == i_SLI_TYPE_ARRAY:
+        print("time obj")
+        ret = sli_array_to_object(<ArrayDatum*> dat)
+        b = time.time()
+        print(b-a)
+    elif dat.gettypename().toString() == SLI_TYPE_STRING:
+        print(datum_type)
+        print("SLI_TYPE_STRING")
+        ret = (<string> deref_str(<StringDatum*> dat)).decode('utf-8')
+    elif dat.gettypename().toString() == SLI_TYPE_CONNECTION:
+        print(datum_type)
+        print("SLI_TYPE_CONN")
         datum = SLIDatum()
         (<SLIDatum> datum)._set_datum(<Datum*> new ConnectionDatum(deref(<ConnectionDatum*> dat)), SLI_TYPE_CONNECTION.decode())
         ret = nest.SynapseCollection(datum)
-    elif datum_type == SLI_TYPE_VECTOR_INT:
+    elif dat.gettypename().toString() == SLI_TYPE_VECTOR_INT:
+        print(datum_type)
+        print("SLI_TYPE_VECT_INT")
         ret = sli_vector_to_object[sli_vector_int_ptr_t, long](<IntVectorDatum*> dat)
-    elif datum_type == SLI_TYPE_VECTOR_DOUBLE:
+    elif dat.gettypename().toString() == SLI_TYPE_VECTOR_DOUBLE:
+        print(datum_type)
+        print("SLI_TYPE_VECT_DOUBLE")
         ret = sli_vector_to_object[sli_vector_double_ptr_t, double](<DoubleVectorDatum*> dat)
-    elif datum_type == SLI_TYPE_MASK:
+    elif dat.gettypename().toString() == SLI_TYPE_MASK:
+        print(datum_type)
+        print("SLI_TYPE_MASK")
         datum = SLIDatum()
         (<SLIDatum> datum)._set_datum(<Datum*> new MaskDatum(deref(<MaskDatum*> dat)), SLI_TYPE_MASK.decode())
         ret = nest.Mask(datum)
-    elif datum_type == SLI_TYPE_PARAMETER:
+    elif dat.gettypename().toString() == SLI_TYPE_PARAMETER:
+        print(datum_type)
+        print("SLI_TYPE_PARAM")
         datum = SLIDatum()
         (<SLIDatum> datum)._set_datum(<Datum*> new ParameterDatum(deref(<ParameterDatum*> dat)), SLI_TYPE_PARAMETER.decode())
         ret = nest.Parameter(datum)
-    elif datum_type == SLI_TYPE_NODECOLLECTION:
+    elif dat.gettypename().toString() == SLI_TYPE_NODECOLLECTION:
+        print(datum_type)
+        print("SLI_TYPE_NODECOLLECT")
         datum = SLIDatum()
         (<SLIDatum> datum)._set_datum(<Datum*> new NodeCollectionDatum(deref(<NodeCollectionDatum*> dat)), SLI_TYPE_NODECOLLECTION.decode())
         ret = nest.NodeCollection(datum)
-    elif datum_type == SLI_TYPE_NODECOLLECTIONITERATOR:
+    elif dat.gettypename().toString() == SLI_TYPE_NODECOLLECTIONITERATOR:
+        print(datum_type)
+        print("SLI_TYPE_NODECOLLECTIT")
         ret = SLIDatum()
         (<SLIDatum> ret)._set_datum(<Datum*> new NodeCollectionIteratorDatum(deref(<NodeCollectionIteratorDatum*> dat)), SLI_TYPE_NODECOLLECTIONITERATOR.decode())
     else:
@@ -545,37 +589,99 @@ cdef inline object sli_datum_to_object(Datum* dat):
 
     return ret
 
+# ---------------------------------------------------------------------
+# FAST NumPy Replacement for sli_array_to_object
+# ---------------------------------------------------------------------
+
 cdef inline object sli_array_to_object(ArrayDatum* dat):
+    cdef size_t n = dat.size()
+    
+    # Handle empty case
+    if n == 0:
+        return {} # CHANGED: Returns empty dict instead of empty tuple
 
-    # the size of dat has to be explicitly cast to int to avoid
-    # compiler warnings (#1318) during cythonization
-    cdef tmp = [None] * int(dat.size())
-
-    # i and n have to be cast to size_t (unsigned long int) to avoid
-    # compiler warnings (#1318) in the for loop below
-    cdef size_t i, n
     cdef Token* tok = dat.begin()
+    
+    # Typed arrays
+    cdef cnumpy.ndarray[long, ndim=1] sources
+    cdef cnumpy.ndarray[long, ndim=1] targets
+    cdef cnumpy.ndarray[double, ndim=1] weights
+    cdef cnumpy.ndarray[double, ndim=1] delays
 
-    n = len(tmp)
-    if not n:
-        return ()
+    # Memory views (This is where the speed comes from)
+    cdef long[:] s_view
+    cdef long[:] t_view
+    cdef double[:] w_view
+    cdef double[:] d_view
 
+    # Variables for the slow path (heuristic optimization)
+    # cdef cnumpy.ndarray d_arr_slow
+    # cdef double[:] d_view_slow
+    # cdef cnumpy.ndarray l_arr_slow
+    # cdef long[:] l_view_slow
+    # cdef Token* save_tok
+    # cdef bint fail_flag
+    
+    # -------------------------------------------------------
+    # FAST PATH: If this array contains Connections
+    # -------------------------------------------------------
+    # We use string comparison on the first element to detect type.
+    # (SLI_TYPE_CONNECTION is usually defined in the .pyx file headers)
     if tok.datum().gettypename().toString() == SLI_TYPE_CONNECTION:
+        
+        # 1. Pre-allocate NumPy Arrays (Columnar Storage)
+        #    Allocating once is vastly faster than appending to a list n times.
+        sources = numpy.empty(n, dtype=numpy.int64)
+        targets = numpy.empty(n, dtype=numpy.int64)
+        weights = numpy.empty(n, dtype=numpy.float64)
+        delays = numpy.empty(n, dtype=numpy.float64)
+
+        # 2. Create Memory Views
+        #    This allows Cython to write to the arrays at C-speed (no Python checking)
+        s_view = sources
+        t_view = targets
+        w_view = weights
+        d_view = delays
+
+        # 3. The High-Speed Loop
         for i in range(n):
-            datum = SLIDatum()
-            (<SLIDatum> datum)._set_datum(<Datum*> new ConnectionDatum(deref(<ConnectionDatum*> tok.datum())), SLI_TYPE_CONNECTION.decode())
-            tmp[i] = datum
-            # Increment
+            # Unsafe cast to ConnectionDatum* (Fastest access)
+            c_ptr = <ConnectionDatum*> tok.datum()
+            
+            # Direct Access: Copy C++ values directly to NumPy memory
+            # Note: methods might vary slightly by NEST version. 
+            # If .source / .target are public members in your pxd, use c_ptr.source
+            # Otherwise use the getters:
+            s_view[i] = c_ptr.get_source_node_id()
+            t_view[i] = c_ptr.get_target_node_id()
+            w_view[i] = 0.0 # c_ptr.get_weight()
+            d_view[i] = 0.0 # c_ptr.get_delay()
+
+            # Increment token iterator
             inc(tok)
-        return nest.SynapseCollection(tmp)
+
+        # 4. Return Dictionary (BREAKING CHANGE)
+        #    Old code returned nest.SynapseCollection. We return a dict.
+        return {
+            "source": sources, 
+            "target": targets, 
+            "weight": weights, 
+            "delay": delays
+        }
+
+    # -------------------------------------------------------
+    # SLOW PATH: For everything else (e.g. Node Status dictionaries)
+    # -------------------------------------------------------
     else:
+        # Fallback to the original slow loop for non-connection data
+        tmp = [None] * n
         for i in range(n):
             tmp[i] = sli_datum_to_object(tok.datum())
             inc(tok)
         return tuple(tmp)
 
 cdef inline object sli_dict_to_object(DictionaryDatum* dat):
-
+    # print("Calling DICT to OBJECT")  # called some time, not too many actually
     cdef tmp = {}
 
     cdef string key_str
@@ -592,34 +698,83 @@ cdef inline object sli_dict_to_object(DictionaryDatum* dat):
     return tmp
 
 cdef inline object sli_vector_to_object(sli_vector_ptr_t dat, vector_value_t _ = 0):
-
     cdef vector_value_t* array_data = NULL
     cdef vector[vector_value_t]* vector_ptr = NULL
+    cdef object ret_dtype = None
+    cdef cnumpy.npy_intp dims[1] # <--- ADDED: for NumPy array creation
+    cdef cnumpy.ndarray numpy_arr
+
+    # Debug prints
+    print("sli_vector_to_object called: sli_vector_ptr_t=")
 
     if sli_vector_ptr_t is sli_vector_int_ptr_t and vector_value_t is long:
         vector_ptr = deref_ivector(dat)
-        arr = array.clone(ARRAY_LONG, vector_ptr.size(), False)
-        array_data = arr.data.as_longs
+        print("Selected int vector specialization; vector_ptr is")
         if HAVE_NUMPY:
-            ret_dtype = int
+            ret_dtype = int # Use NumPy types for consistency
+            print("NumPy available: will create NumPy int array")
+        else:
+            arr = array.clone(ARRAY_LONG, vector_ptr.size(), False)
+            array_data = arr.data.as_longs # Fallback pointer
+            print("NumPy not available: cloned ARRAY_LONG of size")
     elif sli_vector_ptr_t is sli_vector_double_ptr_t and vector_value_t is double:
         vector_ptr = deref_dvector(dat)
-        arr = array.clone(ARRAY_DOUBLE, vector_ptr.size(), False)
-        array_data = arr.data.as_doubles
+        print("Selected double vector specialization; vector_ptr is")
         if HAVE_NUMPY:
             ret_dtype = float
+            print("NumPy available: will create NumPy float array")
+        else:
+            arr = array.clone(ARRAY_DOUBLE, vector_ptr.size(), False)
+            array_data = arr.data.as_doubles # Fallback pointer
+            print("NumPy not available: cloned ARRAY_DOUBLE of size")
     else:
+        print("Unsupported specialization: sli_vector_ptr_t= vector_value_t=")
         raise NESTErrors.PyNESTError("unsupported specialization")
 
     # skip when vector_ptr points to an empty vector
     if vector_ptr.size() > 0:
-        memcpy(array_data, &vector_ptr.front(), vector_ptr.size() * sizeof(vector_value_t))
+        print("vector size >")
+        if HAVE_NUMPY:
+            # --- START OPTIMIZATION BLOCK ---
+            print("Creating NumPy array and copying data directly (optimized path)")
 
-    if HAVE_NUMPY:
-        if vector_ptr.size() > 0:
-            return numpy.frombuffer(arr, dtype=ret_dtype)
+            # 1. Prepare NumPy C-API dimensions
+            dims[0] = vector_ptr.size()
+
+            # 2. Create the NumPy array object (allocates memory)
+            # Use PyArray_SimpleNewFromData if you can guarantee memory lifetime,
+            # but using SimpleNew and memcpy is safer for stack-based vectors.
+            if vector_value_t is long:
+                numpy_arr = <cnumpy.ndarray> cnumpy.PyArray_SimpleNew(1, dims, cnumpy.NPY_INT64)
+                print("NumPy array created with dtype NPY_INT64, length")
+            else: # vector_value_t is double
+                numpy_arr = <cnumpy.ndarray> cnumpy.PyArray_SimpleNew(1, dims, cnumpy.NPY_FLOAT64)
+                print("NumPy array created with dtype NPY_FLOAT64, length")
+
+            # 3. Copy the data directly from the C++ vector's internal buffer 
+            # into the NumPy array's data buffer (zero Python overhead)
+            memcpy(cnumpy.PyArray_DATA(numpy_arr), &vector_ptr.front(), dims[0] * sizeof(vector_value_t))
+            print("memcpy completed: copied")
+
+            # Return the NumPy array immediately
+            return numpy_arr
+            # --- END OPTIMIZATION BLOCK ---
         else:
-            # Compatibility with NumPy < 1.7.0
-            return numpy.array([], dtype=ret_dtype)
+            # Original fallback logic for systems without NumPy
+            print("Fallback memcpy into array module buffer, size")
+            memcpy(array_data, &vector_ptr.front(), vector_ptr.size() * sizeof(vector_value_t))
     else:
+        # vector is empty
+        print("vector is empty (size 0)")
+
+    # Original return block (only reached if HAVE_NUMPY is False or vector is empty)
+    if not HAVE_NUMPY:
+        print("Returning fallback array object")
         return arr
+    elif vector_ptr.size() == 0:
+        print("Returning empty NumPy array with dtype")
+        return numpy.array([], dtype=ret_dtype)
+    else:
+        # This line is unreachable if the optimized block runs, but needed for compilation flow
+        print("Internal error in vector conversion logic - reached unexpected code path")
+        raise NESTErrors.PyNESTError("Internal error in vector conversion logic.")

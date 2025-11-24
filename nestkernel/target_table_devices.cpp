@@ -180,6 +180,10 @@ nest::TargetTableDevices::get_connections_from_devices_( const size_t requested_
   }
 }
 
+#include <chrono>
+#include <cstdio>
+
+using namespace std::chrono;
 void
 nest::TargetTableDevices::get_connections( const size_t requested_source_node_id,
   const size_t requested_target_node_id,
@@ -188,10 +192,32 @@ nest::TargetTableDevices::get_connections( const size_t requested_source_node_id
   const long synapse_label,
   std::deque< ConnectionID >& conns ) const
 {
-  // collect all connections from neurons to devices
-  get_connections_to_devices_( requested_source_node_id, requested_target_node_id, tid, syn_id, synapse_label, conns );
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_start = high_resolution_clock::now();
 
-  // collect all connections from devices
+    // collect all connections from neurons to devices
+    const auto t_before_to = high_resolution_clock::now();
+  #endif
+  get_connections_to_devices_( 
+   requested_source_node_id, requested_target_node_id, tid, syn_id, synapse_label, conns );
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_after_to = high_resolution_clock::now();
+
+    // collect all connections from devices
+    const auto t_before_from = high_resolution_clock::now();
+  #endif
   get_connections_from_devices_(
     requested_source_node_id, requested_target_node_id, tid, syn_id, synapse_label, conns );
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_after_from = high_resolution_clock::now();
+
+    const auto ns_to = duration_cast<nanoseconds>( t_after_to - t_before_to ).count();
+    const auto ns_from = duration_cast<nanoseconds>( t_after_from - t_before_from ).count();
+    const auto ns_total = duration_cast<nanoseconds>( t_after_from - t_start ).count();
+
+    std::fprintf( stderr,
+      "TargetTableDevices::get_connections tid=%zu syn_id=%d requested_src=%zu requested_tgt=%zu: to=%lld ns from=%lld ns total=%lld ns\n",
+      tid, static_cast<int>(syn_id), requested_source_node_id, requested_target_node_id,
+      static_cast<long long>(ns_to), static_cast<long long>(ns_from), static_cast<long long>(ns_total) );
+  #endif
 }

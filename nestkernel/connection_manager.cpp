@@ -34,6 +34,9 @@
 #include <set>
 #include <vector>
 
+#include <chrono>
+#include <iostream>
+
 // Includes from libnestutil:
 #include "compose.hpp"
 #include "logging.h"
@@ -1079,10 +1082,19 @@ nest::ConnectionManager::get_num_connections( const synindex syn_id ) const
   return num_connections;
 }
 
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
+using std::chrono::duration;
+using std::chrono::milliseconds;
+using std::chrono::nanoseconds;
+
 ArrayDatum
 nest::ConnectionManager::get_connections( const DictionaryDatum& params )
 {
   std::deque< ConnectionID > connectome;
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_start = high_resolution_clock::now();
+  #endif
   const Token& source_t = params->lookup( names::source );
   const Token& target_t = params->lookup( names::target );
   const Token& syn_model_t = params->lookup( names::synapse_model );
@@ -1091,7 +1103,10 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
 
   long synapse_label = UNLABELED_CONNECTION;
   updateValue< long >( params, names::synapse_label, synapse_label );
-
+  
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_decode_start = high_resolution_clock::now();
+  #endif
   if ( not source_t.empty() )
   {
     source_a = getValue< NodeCollectionDatum >( source_t );
@@ -1108,55 +1123,142 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
       throw KernelException( "GetConnection requires valid target NodeCollection." );
     }
   }
-
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_decode_end = high_resolution_clock::now();
+    const auto t_infra_check_start = high_resolution_clock::now();
+  #endif
   // If connections have changed, (re-)build presynaptic infrastructure,
   // as this may involve sorting connections by source node IDs.
   if ( connections_have_changed() )
   {
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_update_delay_start = high_resolution_clock::now();
+    #endif
     // We need to update min_delay because it is used by check_wfr_use() below
     // to set secondary event data size.
     update_delay_extrema_();
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_update_delay_end = high_resolution_clock::now();
 
+      const auto t_wfr_check_start = high_resolution_clock::now();
+    #endif
     // Check whether waveform relaxation is used on any MPI process;
     // needs to be called before update_connection_infrastructure since
     // it resizes coefficient arrays for secondary events
     kernel().node_manager.check_wfr_use();
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_wfr_check_end = high_resolution_clock::now();
 
+      const auto t_parallel_start = high_resolution_clock::now();
+    #endif
 #pragma omp parallel
     {
       const size_t tid = kernel().vp_manager.get_thread_id();
       kernel().simulation_manager.update_connection_infrastructure( tid );
     }
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_parallel_end = high_resolution_clock::now();
+
+      // print infra timing summary
+      {
+        const double delay_ms = duration_cast<milliseconds>( t_update_delay_end - t_update_delay_start ).count();
+        const double wfr_ms = duration_cast<milliseconds>( t_wfr_check_end - t_wfr_check_start ).count();
+        const double parallel_ms = duration_cast<milliseconds>( t_parallel_end - t_parallel_start ).count();
+        {
+          std::ostringstream os;
+          os << "[get_connections] infrastructure: update_delay=" << delay_ms << "ms "
+          << "wfr_check=" << wfr_ms << "ms "
+          << "parallel_update_infra=" << parallel_ms << "ms" << std::endl;
+          LOG( M_INFO, "ConnectionManager::get_connections", os.str() );
+        }
+      }
+    #endif
   }
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_infra_check_end = high_resolution_clock::now();
+  #endif
 
   // We check, whether a synapse model is given. If not, we will iterate all.
   size_t syn_id = 0;
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_loop_start = high_resolution_clock::now();
+  #endif
   if ( not syn_model_t.empty() )
   {
     const std::string synmodel_name = getValue< std::string >( syn_model_t );
     // The following throws UnknownSynapseType for invalid synmodel_name
     syn_id = kernel().model_manager.get_synapse_model_id( synmodel_name );
-    get_connections( connectome, source_a, target_a, syn_id, synapse_label );
-  }
-  else
-  {
-    for ( syn_id = 0; syn_id < kernel().model_manager.get_num_connection_models(); ++syn_id )
-    {
-      get_connections( connectome, source_a, target_a, syn_id, synapse_label );
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_getconn_start = high_resolution_clock::now();
+    #endif
+    get_connections( connectome, source_a, target_a, syn_id, synapse_label );  // 200 - 800 ns
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_getconn_end = high_resolution_clock::now();
+      {
+        const double ms = duration_cast<nanoseconds>( t_getconn_end - t_getconn_start ).count();
+        std::ostringstream os1;
+        os1 << "[get_connections] syn_id=" << syn_id << " get_connections_time=" << ms << "ns" << std::endl;
+        LOG( M_INFO, "ConnectionManager::get_connections", os1.str() );
+      }
+    #endif
     }
-  }
+    else
+    {
+    const size_t num_models = kernel().model_manager.get_num_connection_models();
+    for ( syn_id = 0; syn_id < num_models; ++syn_id )
+    {
+      #ifdef ENABLE_NS_PROFILING
+        const auto t_getconn_start = high_resolution_clock::now();
+      #endif
+      get_connections( connectome, source_a, target_a, syn_id, synapse_label );
+      #ifdef ENABLE_NS_PROFILING
+        const auto t_getconn_end = high_resolution_clock::now();
 
-  ArrayDatum result;
-  result.reserve( connectome.size() );
+        const double ms = duration_cast<nanoseconds>( t_getconn_end - t_getconn_start ).count();
+        std::ostringstream os2;
+        os2 << "[get_connections] (syn_model_t empty) syn_id=" << syn_id << " get_connections_time=" << ms << "ns" << std::endl;
+        LOG( M_INFO, "ConnectionManager::get_connections", os2.str() );
+      #endif
+    }
+    }
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_loop_end = high_resolution_clock::now();
 
-  while ( not connectome.empty() )
-  {
-    result.push_back( ConnectionDatum( connectome.front() ) );
-    connectome.pop_front();
-  }
+      const auto t_pack_start = high_resolution_clock::now();
+    #endif
+    ArrayDatum result;
+    result.reserve( connectome.size() );
 
-  get_connections_has_been_called_ = true;
+    for (const auto& conn : connectome) {
+        result.push_back(ConnectionDatum(conn));
+    }
+    connectome.clear();  // if you really need to empty it
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_pack_end = high_resolution_clock::now();
+    #endif
+    
+    get_connections_has_been_called_ = true;
+    
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_end = high_resolution_clock::now();
 
+      // Print a timing breakdown
+      {
+      const double total_ms = duration_cast<milliseconds>( t_end - t_start ).count();
+      const double decode_ms = duration_cast<milliseconds>( t_decode_end - t_decode_start ).count();
+      const double infra_ms = duration_cast<milliseconds>( t_infra_check_end - t_infra_check_start ).count();
+      const double loop_ms = duration_cast<milliseconds>( t_loop_end - t_loop_start ).count();
+      const double pack_ms = duration_cast<milliseconds>( t_pack_end - t_pack_start ).count();
+
+      std::ostringstream os3;
+      os3 << "[get_connections] timing summary: total=" << total_ms << "ms "
+        << "decode=" << decode_ms << "ms "
+        << "infrastructure=" << infra_ms << "ms "
+        << "syn_loop=" << loop_ms << "ms "
+        << "pack=" << pack_ms << "ms" << std::endl;
+      LOG( M_INFO, "ConnectionManager::get_connections", os3.str() );
+      }
+    #endif
   return result;
 }
 
@@ -1269,6 +1371,11 @@ nest::ConnectionManager::get_connections_from_sources_( const size_t tid,
   synindex syn_id,
   long synapse_label ) const
 {
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_start = high_resolution_clock::now();
+
+    const auto t_split_start = high_resolution_clock::now();
+  #endif
   // Split targets into neuron- and device-vectors.
   std::vector< size_t > target_neuron_node_ids;
   std::vector< size_t > target_device_node_ids;
@@ -1276,7 +1383,11 @@ nest::ConnectionManager::get_connections_from_sources_( const size_t tid,
   {
     split_to_neuron_device_vectors_( tid, target, target_neuron_node_ids, target_device_node_ids );
   }
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_split_end = high_resolution_clock::now();
 
+    const auto t_conn_loop_start = high_resolution_clock::now();
+  #endif
   const ConnectorBase* connections = connections_[ tid ][ syn_id ];
   if ( connections )
   {
@@ -1300,7 +1411,11 @@ nest::ConnectionManager::get_connections_from_sources_( const size_t tid,
       }
     }
   }
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_conn_loop_end = high_resolution_clock::now();
 
+    const auto t_device_loop_start = high_resolution_clock::now();
+  #endif
   NodeCollection::const_iterator s_id = source->begin();
   for ( ; s_id < source->end(); ++s_id )
   {
@@ -1330,6 +1445,28 @@ nest::ConnectionManager::get_connections_from_sources_( const size_t tid,
       }
     }
   }
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_device_loop_end = high_resolution_clock::now();
+
+    const auto t_end = high_resolution_clock::now();
+
+    // prepare timing log (nanoseconds)
+    const long long ns_total = duration_cast<nanoseconds>( t_end - t_start ).count();
+    const long long ns_split = duration_cast<nanoseconds>( t_split_end - t_split_start ).count();
+    const long long ns_conn_loop = duration_cast<nanoseconds>( t_conn_loop_end - t_conn_loop_start ).count();
+    const long long ns_device_loop = duration_cast<nanoseconds>( t_device_loop_end - t_device_loop_start ).count();
+
+    std::ostringstream os;
+    os << "[get_connections_from_sources_] tid=" << tid
+      << " syn_id=" << syn_id
+      << " total_ns=" << ns_total
+      << " split_ns=" << ns_split
+      << " conn_loop_ns=" << ns_conn_loop
+      << " device_loop_ns=" << ns_device_loop
+      << " found_connections=" << conns_in_thread.size() << std::endl;
+
+    LOG( M_INFO, "ConnectionManager::get_connections_from_sources_", os.str() );
+  #endif
 }
 
 void
@@ -1338,23 +1475,41 @@ nest::ConnectionManager::get_connections( std::deque< ConnectionID >& connectome
   NodeCollectionPTR target,
   synindex syn_id,
   long synapse_label ) const
-{
+{  
   if ( get_num_connections( syn_id ) == 0 )
   {
     return;
   }
 
+  #ifdef ENABLE_NS_PROFILING
+    const size_t num_threads = kernel().vp_manager.get_num_threads();
+    // Per-thread accumulators (nanoseconds)
+    std::vector< long long > check_times( num_threads, 0 );
+    std::vector< long long > getconn_times( num_threads, 0 );
+    std::vector< long long > critical_times( num_threads, 0 );
+    std::vector< long long > thread_total_times( num_threads, 0 );
+
+    const auto t_start = high_resolution_clock::now();
+  #endif
 #pragma omp parallel
   {
+    const size_t tid = kernel().vp_manager.get_thread_id();
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_thread_start = high_resolution_clock::now();
+    #endif
     if ( is_source_table_cleared() )
     {
       throw KernelException( "Invalid attempt to access connection information: source table was cleared." );
     }
-
-    size_t tid = kernel().vp_manager.get_thread_id();
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_check_end = high_resolution_clock::now();
+      check_times[ tid ] = duration_cast<nanoseconds>( t_check_end - t_thread_start ).count();
+    #endif
 
     std::deque< ConnectionID > conns_in_thread;
-
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_getconn_start = high_resolution_clock::now();
+    #endif
     if ( not source.get() and not target.get() )
     {
       get_connections_( tid, conns_in_thread, source, target, syn_id, synapse_label );
@@ -1367,15 +1522,57 @@ nest::ConnectionManager::get_connections( std::deque< ConnectionID >& connectome
     {
       get_connections_from_sources_( tid, conns_in_thread, source, target, syn_id, synapse_label );
     }
-
-    if ( conns_in_thread.size() > 0 )
-    {
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_getconn_end = high_resolution_clock::now();
+      getconn_times[ tid ] = duration_cast<nanoseconds>( t_getconn_end - t_getconn_start ).count();
+    #endif
+      
+      if ( conns_in_thread.size() > 0 )
+      {
+        #ifdef ENABLE_NS_PROFILING
+          std::ostringstream os;
+          os << "Critical part thread " << tid << ", got "
+          << conns_in_thread.size() << " connections." << std::endl;
+          LOG( M_INFO, "ConnectionManager::get_connections", os.str() );
+          const auto t_critical_start = high_resolution_clock::now();
+        #endif
 #pragma omp critical( get_connections )
       {
         extend_connectome( connectome, conns_in_thread );
       }
+      #ifdef ENABLE_NS_PROFILING
+        const auto t_critical_end = high_resolution_clock::now();
+        critical_times[ tid ] = duration_cast<nanoseconds>( t_critical_end - t_critical_start ).count();
+      #endif
     }
-  }
+    #ifdef ENABLE_NS_PROFILING
+      const auto t_thread_end = high_resolution_clock::now();
+      thread_total_times[ tid ] = duration_cast<nanoseconds>( t_thread_end - t_thread_start ).count();
+    #endif
+  } // of omp parallel
+
+  #ifdef ENABLE_NS_PROFILING
+    const auto t_end = high_resolution_clock::now();
+    // Aggregate timings
+    long long sum_check = 0, sum_getconn = 0, sum_critical = 0, sum_thread_total = 0;
+    for ( size_t i = 0; i < num_threads; ++i )
+    {
+      sum_check += check_times[ i ];
+      sum_getconn += getconn_times[ i ];
+      sum_critical += critical_times[ i ];
+      sum_thread_total += thread_total_times[ i ];
+    }
+    const long long overall_ns = duration_cast<nanoseconds>( t_end - t_start ).count();
+    
+    std::ostringstream os;
+    os << "[get_connections] timing (ns): overall=" << overall_ns
+    << " sum_thread_total=" << sum_thread_total
+    << " check(sum)=" << sum_check
+    << " getconn(sum)=" << sum_getconn
+    << " critical(sum)=" << sum_critical << std::endl;
+    
+    LOG( M_INFO, "ConnectionManager::get_connections", os.str() );
+  #endif
 }
 
 void

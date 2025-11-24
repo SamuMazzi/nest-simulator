@@ -18,7 +18,7 @@
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 
 if ( HAVE_PYTHON )
-
+  set(NUMPY_INCLUDES_PATH "/usr/lib/python3/dist-packages/numpy/core/include")
   if ( CYTHON_FOUND )
     include( UseCython )
     set_source_files_properties(
@@ -26,6 +26,9 @@ if ( HAVE_PYTHON )
         PROPERTIES CYTHON_IS_CXX TRUE )
 
     cython_add_module( pynestkernel pynestkernel.pyx )
+    target_compile_options(pynestkernel PRIVATE
+        -I${NUMPY_INCLUDES_PATH}
+    )
   else ()
     # require the source pynest/pynestkernel.cxx precompiled
     set( pynestkernel_generated_file "NOTFOUND" )
@@ -67,6 +70,7 @@ if ( HAVE_PYTHON )
       ${PROJECT_SOURCE_DIR}/thirdparty
       ${PROJECT_SOURCE_DIR}/models
       ${Python_INCLUDE_DIRS}
+      /usr/lib/python3/dist-packages/numpy/core/include/numpy
       )
 
   target_compile_definitions( pynestkernel PRIVATE
