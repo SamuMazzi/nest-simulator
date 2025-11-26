@@ -27,6 +27,7 @@ from libcpp.vector cimport vector
 
 cdef extern from "name.h":
     cppclass Name:
+        Name(const string&) except +
         string toString() except +
         unsigned int toIndex() except +
 
@@ -131,9 +132,14 @@ cdef extern from "arraydatum.h":
         DoubleVectorDatum(vector[double]*) except +
         Name gettypename() except +
 
+cdef extern from "lockptr.h":
+    cppclass lockPTR[T]:
+        T* get() except +
+
 cdef extern from "dict.h":
     cppclass Dictionary:
         Dictionary() except +
+        const Token& lookup2(const Name&) const
 
 cdef extern from "dictdatum.h":
     cppclass TokenMap:
@@ -146,9 +152,11 @@ cdef extern from "dictdatum.h":
     cppclass DictionaryDatum:
         DictionaryDatum() except +
         DictionaryDatum(Dictionary *) except +
+        Dictionary& operator*()
         void insert(const string&, Datum*) except +
         TokenMap.const_iterator begin()
         TokenMap.const_iterator end()
+        TokenMap.const_iterator find(const Name& key) const
         Name gettypename() except +
 
 cdef extern from "tokenstack.h":

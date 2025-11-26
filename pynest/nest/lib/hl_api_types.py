@@ -63,6 +63,13 @@ __all__ = [
 ]
 
 
+COLLECT_PERFORMANCE = False
+
+if COLLECT_PERFORMANCE:
+    import time
+
+
+
 def CreateParameter(parametertype, specs):
     """
     Create a parameter.
@@ -801,7 +808,7 @@ class SynapseCollection:
             targets = (targets,)
         return iter(targets)
 
-    def get(self, keys=None, output=""):
+    def get(self, keys=None, output="", custom=False):
         """
         Return a parameter dictionary of the connections.
 
@@ -858,9 +865,7 @@ class SynapseCollection:
                {'source': [1, 1, 1, 2, 2, 2, 3, 3, 3],
                 'weight': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
         """
-        import time
 
-        a = time.time()
         pandas_output = output == "pandas"
         if pandas_output and not HAVE_PANDAS:
             raise ImportError("Pandas could not be imported")
@@ -888,21 +893,24 @@ class SynapseCollection:
             cmd = "GetStatus {{ [ [ {0} ] ] get }} Map".format(keys_str)
         else:
             raise TypeError("keys should be either a string or an iterable")
-        b = time.time()
-        print("GetStatus command time:", b - a, "seconds")
+        
+        if COLLECT_PERFORMANCE:
+            sps_start = time.time()
         sps(self._datum)
-        b1 = time.time()
-        print("sps time:", b1 - b, "seconds")
+        if COLLECT_PERFORMANCE:
+            sps_end = time.time()
         sr(cmd)
-        b2 = time.time()
-        print("sr result time:", b2 - b1, "seconds")
-        result = spp()
-        c = time.time()
-        print("spp result time:", c - b2, "seconds")
+        
+        if COLLECT_PERFORMANCE:
+            sr_end = time.time()
+        result = spp(custom=custom)
+        if COLLECT_PERFORMANCE:
+            spp_end = time.time()
 
         # Need to restructure the data.
         final_result = restructure_data(result, keys)
-        d = time.time()
+        if COLLECT_PERFORMANCE:
+            restructure_end = time.time()
         if pandas_output:
             index = self.get("source") if self.__len__() > 1 else (self.get("source"),)
             if is_literal(keys):
@@ -910,11 +918,15 @@ class SynapseCollection:
             final_result = pandas.DataFrame(final_result, index=index)
         elif output == "json":
             final_result = to_json(final_result)
-        e = time.time()
 
-        print("GetStatus result time:", c - b, "seconds")
-        print("Restructure data time:", d - c, "seconds")
-        print("Output formatting time:", e - d, "seconds")
+        if COLLECT_PERFORMANCE:
+            output_end = time.time()
+
+            print("sps time:", sps_end - sps_start, "seconds")
+            print("sr result time:", sr_end - sps_start, "seconds")
+            print("spp result time:", spp_end - sr_end, "seconds")
+            print("Restructure data time:", restructure_end - spp_end, "seconds")
+            print("Output formatting time:", output_end - restructure_end, "seconds")
 
         return final_result
 

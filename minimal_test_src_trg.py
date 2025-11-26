@@ -28,12 +28,33 @@ print(end-start)
 # print(conns)
 end2=time.time()
 print(end2-end)
-print(type(conns))
-conns_sources=conns.get('source')
-conns_tagets=conns.get('target')
+# run conns.get(custom=...) N times (half True, half False) and record timings
+N = 100  # choose an even number
+if N % 2 != 0:
+    raise ValueError("N must be even")
+
+print(f"Running conns.get(custom=...) {N} times (half True, half False)")
+times_true = []
+times_false = []
+for i in range(N):
+    flag = i < (N // 2)
+    t0 = time.time()
+    res = conns.get(custom=flag)
+    t1 = time.time()
+    # print(f"Run {i+1}/{N} with custom={flag}:\t{t1 - t0} seconds")
+    if flag:
+        times_true.append(t1 - t0)
+    else:
+        times_false.append(t1 - t0)
+    assert len(res['source']) == len(res['target']), f"Mismatch in lengths of source {len(res['source'])} and target {len(res['target'])}"
+    assert all(res['source'][i] == res['target'][i]-100 for i in range(len(res['source']))), "Source and target values do not match expected pattern"
+    assert len(res['weight']) == len(res['source'])
+
+print("true avg:\t", sum(times_true) / len(times_true) if times_true else float('nan'))
+print("false avg:\t", sum(times_false) / len(times_false) if times_false else float('nan'))
 # print(conns_sources)
 # print(conns_tagets)
-print('done',time.time()-end2)
+# assert all(conns_sources['source'][i] == neurons[i//100] for i in range(len(conns_sources['source'])))
 # print('queried ',len(conns.get(['source'])['source']), ' connections in: ', end-start,'ms')
 # print(np.unique(conns.get(['source'])['source']).shape)
 # print(np.unique(conns.get(['target'])['target']).shape)
