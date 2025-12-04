@@ -6,7 +6,7 @@ nest.SetKernelStatus({
                         # "local_num_threads": 24,
                      })
 neurons=nest.Create('ht_neuron',10000)
-for i in range(4000):
+for i in range(8000):
     nest.Connect(neurons[i],neurons[i+100],{'rule':'all_to_all'},{'synapse_model':'stdp_synapse','weight':i/10,'delay':1,'receptor_type':1})
 nest.Simulate(100)
 print("Connections created")
@@ -15,46 +15,67 @@ print("Connections created")
 start=time.time()
 conns=nest.GetConnections(source=neurons)
 end=time.time()
-print(end-start)
+print("Get connections:", end-start)
 
-# print(conns.sources)
-# print(conns.sources())
-# for con_s in conns.get("source"):  # sources():
-#     n=1
-    # print(con_s)
-# print(dir(conns._datum[0]))
-# conns_sources=conns.get(['source'])
-# conns.print_full = True
-# print(conns)
-end2=time.time()
-print(end2-end)
-# run conns.get(custom=...) N times (half True, half False) and record timings
-N = 100  # choose an even number
-if N % 2 != 0:
-    raise ValueError("N must be even")
+def test_set():
+    for idp in (id_pyr.astype(int) + 1):
+        #print(idp)
+        conn = nest.GetConnections(neurons) # node_collections[pop_name_full][idp-1])
+        res = conn.get(custom=True)
+        source = res["source"] #nest.GetStatus(conn, 'source')
+        targ = res["target"] #nest.GetStatus(conn, 'target')
+        ww = res["weight"] #nest.GetStatus(conn, 'weight')
+        mask = (pre==idp)
+        saved_targ = post[mask]
+        index_mapping ={}
+        for index,value in enumerate(targ):
+            if value in index_mapping:
+                index_mapping[value].append(index)
+            else:
+                index_mapping[value] = [index]
 
-print(f"Running conns.get(custom=...) {N} times (half True, half False)")
-times_true = []
-times_false = []
-for i in range(N):
-    flag = i < (N // 2)
-    t0 = time.time()
-    res = conns.get(custom=flag)
-    t1 = time.time()
-    # print(f"Run {i+1}/{N} with custom={flag}:\t{t1 - t0} seconds")
-    if flag:
-        times_true.append(t1 - t0)
-    else:
-        times_false.append(t1 - t0)
-    assert len(res['source']) == len(res['target']), f"Mismatch in lengths of source {len(res['source'])} and target {len(res['target'])}"
-    assert all(res['source'][i] == res['target'][i]-100 for i in range(len(res['source']))), "Source and target values do not match expected pattern"
-    assert len(res['weight']) == len(res['source'])
+        found_index = np.empty_like(saved_targ, dtype=int)
+        for i, value in enumerate(saved_targ):
+            idx = index_mapping[value].pop(0)
+            found_index[idx] = i
 
-print("true avg:\t", sum(times_true) / len(times_true) if times_true else float('nan'))
-print("false avg:\t", sum(times_false) / len(times_false) if times_false else float('nan'))
-# print(conns_sources)
-# print(conns_tagets)
-# assert all(conns_sources['source'][i] == neurons[i//100] for i in range(len(conns_sources['source'])))
-# print('queried ',len(conns.get(['source'])['source']), ' connections in: ', end-start,'ms')
-# print(np.unique(conns.get(['source'])['source']).shape)
-# print(np.unique(conns.get(['target'])['target']).shape)
+        #print(idp,source[0], len(targ),len(ww[pre==idp]), len(found_index) )
+        conn.set({'weight':ww[mask][found_index]})
+
+
+def test_get():
+    # run conns.get(custom=...) N times (half True, half False) and record timings
+    N = 100  # choose an even number
+    if N % 2 != 0:
+        raise ValueError("N must be even")
+
+    print(f"Running conns.get(custom=...) {N} times (half True, half False)")
+    times_true = []
+    times_false = []
+    for i in range(N):
+        flag = i < (N // 2)
+        t0 = time.time()
+        res = conns.get(custom=flag)
+        # print("python res", res)
+        t1 = time.time()
+        # print(f"Run {i+1}/{N} with custom={flag}:\t{t1 - t0} seconds")
+        if flag:
+            times_true.append(t1 - t0)
+        else:
+            times_false.append(t1 - t0)
+        # print("type", type(res['source']))
+        assert len(res['source']) == len(res['target']), f"Mismatch in lengths of source {len(res['source'])} and target {len(res['target'])}"
+        assert all(res['source'][i] == res['target'][i]-100 for i in range(len(res['source']))), "Source and target values do not match expected pattern"
+        assert len(res['weight']) == len(res['source'])
+
+    print("true avg:\t", sum(times_true) / len(times_true) if times_true else float('nan'))
+    print("false avg:\t", sum(times_false) / len(times_false) if times_false else float('nan'))
+    # print(conns_sources)
+    # print(conns_tagets)
+    # assert all(conns_sources['source'][i] == neurons[i//100] for i in range(len(conns_sources['source'])))
+    # print('queried ',len(conns.get(['source'])['source']), ' connections in: ', end-start,'ms')
+    # print(np.unique(conns.get(['source'])['source']).shape)
+    # print(np.unique(conns.get(['target'])['target']).shape)
+
+
+test_get()

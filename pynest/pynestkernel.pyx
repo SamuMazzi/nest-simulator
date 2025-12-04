@@ -587,56 +587,42 @@ cdef inline object sli_array_to_object_numpy(ArrayDatum* dat, cbool custom=False
     if n == 0:
         return {}
 
-    tok = dat.begin()
+    tok = dat.begin()        
 
-    # --- FAST PATH: CONNECTIONS ---
-    if tok.datum().gettypename().toString() == SLI_TYPE_CONNECTION:
-        
-        # Initialize the arrays now (Allocation)
-        sources = numpy.empty(n, dtype=numpy.int64)
-        targets = numpy.empty(n, dtype=numpy.int64)
-        weights = numpy.empty(n, dtype=numpy.float64)
-        delays = numpy.empty(n, dtype=numpy.float64)
+    # Initialize the arrays now (Allocation)
+    sources = numpy.empty(n, dtype=numpy.int64)
+    targets = numpy.empty(n, dtype=numpy.int64)
+    weights = numpy.empty(n, dtype=numpy.float64)
+    delays = numpy.empty(n, dtype=numpy.float64)
 
-        # Assign Memory Views
-        s_view = sources
-        t_view = targets
-        w_view = weights
-        d_view = delays
+    # Assign Memory Views
+    s_view = sources
+    t_view = targets
+    w_view = weights
+    d_view = delays
 
-        for i in range(n):
-            c_ptr = <ConnectionDatum*> tok.datum()
+    for i in range(n):
+        tmp_obj = sli_datum_to_object(tok.datum(), custom)
 
-            # Fast write via view
-            s_view[i] = c_ptr.get_source_node_id()
-            t_view[i] = c_ptr.get_target_node_id()
-            w_view[i] = sli_datum_to_object(tok.datum(), custom)["weight"]
-            d_view[i] = 0.0
+        # Fast write via view
+        s_view[i] = tmp_obj["source"]
+        t_view[i] = tmp_obj["target"]
+        w_view[i] = tmp_obj["weight"]
+        d_view[i] = 0.0
 
-            inc(tok)
+        inc(tok)
 
-        return {
-            "source": sources, 
-            "target": targets, 
-            "weight": weights, 
-            "delay": delays
-        }
-
-    # -------------------------------------------------------
-    # SLOW PATH: For everything else (e.g. Node Status dictionaries)
-    # -------------------------------------------------------
-    else:
-        # Fallback to the original slow loop for non-connection data
-        tmp = [None] * n
-        for i in range(n):
-            tmp[i] = sli_datum_to_object(tok.datum(), custom)
-            inc(tok)
-        return tuple(tmp)
+    return {
+        "source": sources,
+        "target": targets,
+        "weight": weights,
+        "delay": delays
+    }
 
 
 cdef inline object sli_array_to_object(ArrayDatum* dat, cbool custom=False):
-    # if custom is True:
-    #     return sli_array_to_object_numpy(dat, custom)
+    if custom is True:
+        return sli_array_to_object_numpy(dat, custom)
 
     # the size of dat has to be explicitly cast to int to avoid
     # compiler warnings (#1318) during cythonization
@@ -656,11 +642,7 @@ cdef inline object sli_array_to_object(ArrayDatum* dat, cbool custom=False):
 
     if tok.datum().gettypename().toString() == SLI_TYPE_CONNECTION:
         for i in range(n):
-            # attempt to convert datum to a Python object for printing
-            try:
-                pyobj = sli_datum_to_object(tok.datum(), custom)
-            except Exception:
-                pyobj = "<unprintable datum>"
+            pyobj = sli_datum_to_object(tok.datum(), custom)
 
             # print("conn")
             # print(pyobj)
@@ -674,14 +656,7 @@ cdef inline object sli_array_to_object(ArrayDatum* dat, cbool custom=False):
         return nest.SynapseCollection(tmp)
     else:
         for i in range(n):
-            # convert datum to Python object, print it and store it
-            try:
-                pyobj = sli_datum_to_object(tok.datum(), custom)
-            except Exception:
-                pyobj = "<unprintable datum>"
-
-            # print(pyobj)
-            tmp[i] = pyobj
+            tmp[i] = sli_datum_to_object(tok.datum(), custom)
             inc(tok)
         return tuple(tmp)
 
@@ -697,6 +672,17 @@ cdef inline object sli_array_to_object(ArrayDatum* dat, cbool custom=False):
 #     cdef const Token* tok = &deref_tmap(it).second
 # 
 #     return sli_datum_to_object(tok.datum())
+
+cdef inline object sli_get_key(DictionaryDatum* dat, string key):
+    cdef TokenMap.const_iterator it
+    cdef const Token* tok = NULL
+
+    it = deref_dict(dat).find(Name(key))
+    if it != deref_dict(dat).end():
+        tok = &deref_tmap(it).second
+        return sli_datum_to_object(tok.datum())
+
+    raise NESTErrors.PyNESTError("Key not found")
 
 cdef inline object sli_get_dict_keys(DictionaryDatum* dat, list keys):
     cdef tmp = {}
