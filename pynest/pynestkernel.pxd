@@ -29,7 +29,6 @@ cdef extern from "name.h":
     cppclass Name:
         Name(const string&) except +
         string toString() except +
-        unsigned int toIndex() except +
 
 cdef extern from "datum.h":
     cppclass Datum:
@@ -43,57 +42,40 @@ cdef extern from "namedatum.h":
     cppclass LiteralDatum:
         LiteralDatum(const string&) except +
         string toString() except +
-        Name gettypename() except +
 
 cdef extern from "booldatum.h":
     cppclass BoolDatum:
-        BoolDatum() except +
         BoolDatum(cbool) except +
         bint get() except +
-        Name gettypename() except +
 
 cdef extern from "integerdatum.h":
     cppclass IntegerDatum:
-        IntegerDatum() except +
         IntegerDatum(long) except +
         long get() except +
-        Name gettypename() except +
 
 cdef extern from "doubledatum.h":
     cppclass DoubleDatum:
-        DoubleDatum() except +
         DoubleDatum(double) except +
         double get() except +
-        Name gettypename() except +
 
 cdef extern from "stringdatum.h":
     cppclass StringDatum:
-        StringDatum() except +
         StringDatum(const string&) except +
-        Name gettypename() except +
 
 cdef extern from "mask.h" namespace "nest":
     cppclass MaskDatum:
-        MaskDatum()
         MaskDatum(const MaskDatum&)
-        Name gettypename() except +
 
 cdef extern from "parameter.h":
     cppclass ParameterDatum:
-        ParameterDatum()
         ParameterDatum(const ParameterDatum&)
-        Name gettypename() except +
 
 cdef extern from "node_collection.h":
     cppclass NodeCollectionDatum:
-        NodeCollectionDatum()
         NodeCollectionDatum(const NodeCollectionDatum&)
-        Name gettypename() except +
 
     cppclass NodeCollectionIteratorDatum:
-        NodeCollectionIteratorDatum()
         NodeCollectionIteratorDatum(const NodeCollectionIteratorDatum&)
-        Name gettypename() except +
 
 cdef extern from "connection_id.h" namespace "nest":
     cppclass ConnectionID:
@@ -102,7 +84,6 @@ cdef extern from "connection_id.h" namespace "nest":
 
 cdef extern from "nest_datums.h":
     cppclass ConnectionDatum:
-        ConnectionDatum() except +
         ConnectionDatum(const ConnectionID&) except +
         ConnectionDatum(const ConnectionDatum&) except +
         long get_source_node_id()
@@ -110,7 +91,6 @@ cdef extern from "nest_datums.h":
         long get_target_thread()
         long get_synapse_model_id()
         long get_port()
-        Name gettypename() except +
 
 cdef extern from "arraydatum.h":
     cppclass ArrayDatum:
@@ -120,17 +100,12 @@ cdef extern from "arraydatum.h":
         void push_back(Datum*) except +
         Token* begin()
         Token* end()
-        Name gettypename() except +
 
     cppclass IntVectorDatum:
-        IntVectorDatum() except +
         IntVectorDatum(vector[long]*) except +
-        Name gettypename() except +
 
     cppclass DoubleVectorDatum:
-        DoubleVectorDatum() except +
         DoubleVectorDatum(vector[double]*) except +
-        Name gettypename() except +
 
 cdef extern from "lockptr.h":
     cppclass lockPTR[T]:
@@ -150,14 +125,12 @@ cdef extern from "dictdatum.h":
             Token second
 
     cppclass DictionaryDatum:
-        DictionaryDatum() except +
         DictionaryDatum(Dictionary *) except +
         Dictionary& operator*()
         void insert(const string&, Datum*) except +
         TokenMap.const_iterator begin()
         TokenMap.const_iterator end()
         TokenMap.const_iterator find(const Name& key) const
-        Name gettypename() except +
 
 cdef extern from "tokenstack.h":
     cppclass TokenStack:
