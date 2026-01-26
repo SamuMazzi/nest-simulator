@@ -305,6 +305,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 private:
   // update dopamine trace from last to current dopamine spike and increment
   // index

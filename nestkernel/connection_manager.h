@@ -82,6 +82,8 @@ public:
   void set_status( const DictionaryDatum& ) override;
   void get_status( DictionaryDatum& ) override;
 
+  double get_synapse_weight(const size_t tid, const synindex syn_id, const size_t lcid ) const;
+
   bool valid_connection_rule( std::string );
 
   void compute_target_data_buffer_size();

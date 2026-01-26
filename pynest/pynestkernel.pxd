@@ -91,6 +91,7 @@ cdef extern from "nest_datums.h":
         long get_target_thread()
         long get_synapse_model_id()
         long get_port()
+        long get_weight()
 
 cdef extern from "arraydatum.h":
     cppclass ArrayDatum:

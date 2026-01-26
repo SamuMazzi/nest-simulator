@@ -184,6 +184,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 private:
   double weight_;      //!< synaptic weight
   double U_;           //!< unit increment of a facilitating synapse (U)

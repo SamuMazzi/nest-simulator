@@ -256,6 +256,13 @@ public:
       "be changed via CopyModel()." );
   }
 
+  double get_weight() const
+  {
+    throw NotImplemented(
+      "Setting of individual weights is not possible! The common weights can "
+      "be changed via CopyModel()." );
+  }
+
 private:
   double x_;           //!< amount of resources in recovered state
   double y_;           //!< amount of resources in active state

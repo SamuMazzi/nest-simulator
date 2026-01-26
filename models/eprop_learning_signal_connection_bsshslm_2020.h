@@ -197,6 +197,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 private:
   //! Synaptic weight.
   double weight_;

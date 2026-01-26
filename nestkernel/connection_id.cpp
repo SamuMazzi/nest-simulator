@@ -24,6 +24,7 @@
 
 // Includes from nestkernel:
 #include "nest_names.h"
+#include "kernel_manager.h"
 
 // Includes from sli:
 #include "integerdatum.h"
@@ -51,6 +52,15 @@ ConnectionID::ConnectionID( long source_node_id, long target_thread, long synaps
   , synapse_modelid_( synapse_modelid )
   , port_( port )
 {
+}
+
+double
+ConnectionID::get_weight() const
+{
+  return kernel().connection_manager.get_synapse_weight(
+    static_cast<size_t>( target_thread_ ),  // TODO: Check these casts
+    static_cast<synindex>( synapse_modelid_ ),
+    static_cast<size_t>( port_ ) );
 }
 
 DictionaryDatum

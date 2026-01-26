@@ -5,10 +5,10 @@ nest.SetKernelStatus({
                         "local_num_threads": 1,
                         # "local_num_threads": 24,
                      })
-neurons=nest.Create('ht_neuron',10000)
-for i in range(8000):
+neurons=nest.Create('ht_neuron',15000)
+for i in range(11000):
     nest.Connect(neurons[i],neurons[i+100],{'rule':'all_to_all'},{'synapse_model':'stdp_synapse','weight':i/10,'delay':1,'receptor_type':1})
-nest.Simulate(100)
+nest.Simulate(300)
 print("Connections created")
 
 
@@ -45,31 +45,38 @@ def test_set():
 
 def test_get():
     # run conns.get(custom=...) N times (half True, half False) and record timings
-    N = 100  # choose an even number
-    if N % 2 != 0:
+    N = 150  # choose an even number
+    if N % 3 != 0:
         raise ValueError("N must be even")
 
-    print(f"Running conns.get(custom=...) {N} times (half True, half False)")
-    times_true = []
+    print(f"Running conns.get(custom=...) {N} times")
+    times_really_custom = []
+    times_custom = []
     times_false = []
     for i in range(N):
-        flag = i < (N // 2)
+        really_custom = i < (N // 3)
+        custom = i < (2 * N // 3)
         t0 = time.time()
-        res = conns.get(custom=flag)
+        conns=nest.GetConnections(source=neurons, custom=really_custom)
+        if not really_custom:
+            conns.get(custom=custom)
         # print("python res", res)
         t1 = time.time()
         # print(f"Run {i+1}/{N} with custom={flag}:\t{t1 - t0} seconds")
-        if flag:
-            times_true.append(t1 - t0)
+        if really_custom:
+            times_really_custom.append(t1 - t0)
+        elif custom:
+            times_custom.append(t1 - t0)
         else:
             times_false.append(t1 - t0)
         # print("type", type(res['source']))
-        assert len(res['source']) == len(res['target']), f"Mismatch in lengths of source {len(res['source'])} and target {len(res['target'])}"
-        assert all(res['source'][i] == res['target'][i]-100 for i in range(len(res['source']))), "Source and target values do not match expected pattern"
-        assert len(res['weight']) == len(res['source'])
+        # assert len(res['source']) == len(res['target']), f"Mismatch in lengths of source {len(res['source'])} and target {len(res['target'])}"
+        # assert all(res['source'][i] == res['target'][i]-100 for i in range(len(res['source']))), "Source and target values do not match expected pattern"
+        # assert len(res['weight']) == len(res['source'])
 
-    print("true avg:\t", sum(times_true) / len(times_true) if times_true else float('nan'))
-    print("false avg:\t", sum(times_false) / len(times_false) if times_false else float('nan'))
+    print("really custom avg:\t", sum(times_really_custom) / len(times_really_custom) if times_really_custom else float('nan'))
+    print("custom avg:\t", sum(times_custom) / len(times_custom) if times_custom else float('nan'))
+    print("non custom avg:\t", sum(times_false) / len(times_false) if times_false else float('nan'))
     # print(conns_sources)
     # print(conns_tagets)
     # assert all(conns_sources['source'][i] == neurons[i//100] for i in range(len(conns_sources['source'])))

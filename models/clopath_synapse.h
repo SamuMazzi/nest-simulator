@@ -199,6 +199,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 private:
   double
   depress_( double w, double dw )

@@ -164,6 +164,13 @@ public:
       "diffusion_factor to specifiy the weights." );
   }
 
+  double get_weight() const
+  {
+    throw BadProperty(
+      "Please use the parameters drift_factor and "
+      "diffusion_factor to specifiy the weights." );
+  }
+
   void
   set_delay( double )
   {

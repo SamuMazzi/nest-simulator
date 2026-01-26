@@ -47,7 +47,7 @@ __all__ = [
 
 
 @check_stack
-def GetConnections(source=None, target=None, synapse_model=None, synapse_label=None):
+def GetConnections(source=None, target=None, synapse_model=None, synapse_label=None, custom=False):
     """Return a `SynapseCollection` representing the connection identifiers.
 
     Any combination of `source`, `target`, `synapse_model` and
@@ -104,8 +104,7 @@ def GetConnections(source=None, target=None, synapse_model=None, synapse_label=N
 
     sps(params)
     sr("GetConnections")
-
-    conns = spp()
+    conns = spp(custom=custom)
 
     if isinstance(conns, tuple):
         conns = SynapseCollection(None)

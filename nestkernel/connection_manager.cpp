@@ -242,6 +242,23 @@ nest::ConnectionManager::get_status( DictionaryDatum& dict )
   def< ArrayDatum >( dict, names::connection_rules, connection_rules );
 }
 
+double
+nest::ConnectionManager::get_synapse_weight(
+  const size_t tid,
+  const synindex syn_id,
+  const size_t lcid ) const
+{
+  kernel().model_manager.assert_valid_syn_id( syn_id, kernel().vp_manager.get_thread_id() );
+
+  if ( connections_[ tid ][ syn_id ] )
+  {
+    return connections_[ tid ][ syn_id ]->get_synapse_weight( lcid );
+  }
+  // TODO: This can be extended like `get_synapse_status` to support devices
+  assert( false );
+}
+
+
 DictionaryDatum
 nest::ConnectionManager::get_synapse_status( const size_t source_node_id,
   const size_t target_node_id,

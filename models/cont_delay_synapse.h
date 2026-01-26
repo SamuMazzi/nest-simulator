@@ -127,6 +127,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
   /**
    * Get all properties of this connection and put them into a dictionary.
    */

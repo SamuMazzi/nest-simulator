@@ -213,6 +213,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 
   class ConnTestDummyNode : public ConnTestDummyNodeBase
   {

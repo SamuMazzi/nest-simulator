@@ -222,6 +222,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 private:
   double
   facilitate_( double w, double kplus, const STDPPLHomCommonProperties& cp )

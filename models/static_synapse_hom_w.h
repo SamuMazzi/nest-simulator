@@ -186,6 +186,14 @@ public:
       "be changed via "
       "CopyModel()." );
   }
+
+  double get_weight() const
+  {
+    throw BadProperty(
+      "Setting of individual weights is not possible! The common weights can "
+      "be changed via "
+      "CopyModel()." );
+  }
 };
 
 template < typename targetidentifierT >

@@ -47,6 +47,7 @@ public:
   long get_target_thread() const;
   long get_synapse_model_id() const;
   long get_port() const;
+  double get_weight() const;
 
 protected:
   long source_node_id_;

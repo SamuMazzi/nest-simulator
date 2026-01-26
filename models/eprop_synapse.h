@@ -307,6 +307,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
   //! Delete optimizer
   void delete_optimizer();
 

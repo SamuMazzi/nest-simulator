@@ -327,6 +327,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 private:
   bool eval_function_( double a_causal,
     double a_acausal,

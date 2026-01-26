@@ -82,6 +82,11 @@ public:
   virtual size_t size() const = 0;
 
   /**
+   * Return the weight of the synapse at position lcid.
+   */
+  virtual double get_synapse_weight( const size_t lcid ) const = 0;
+
+  /**
    * Write status of the connection at position lcid to the dictionary
    * dict.
    */
@@ -244,6 +249,14 @@ public:
   size() const override
   {
     return C_.size();
+  }
+
+  double
+  get_synapse_weight( const size_t lcid  ) const override
+  {
+    assert( lcid < C_.size() );
+
+    return C_[ lcid ].get_weight();
   }
 
   void

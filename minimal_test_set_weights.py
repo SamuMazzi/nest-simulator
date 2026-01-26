@@ -28,21 +28,33 @@ get status trg time:  0.007352352142333984
 0.050
 0.025
 """
+def new_test_set(pre,post,weights):
+    t1=time.time()
+    conns=nest.GetConnections(source=neurons[pre], custom=True)
+    sources = conns['source']
+    targets = conns['target']
+    weight = conns['weight']
+    t2=time.time()
+    print('New time: ',t2-t1)
+    return
+
 def test_set(pre,post,weights):
     t1=time.time()
     conns=nest.GetConnections(source=neurons[pre])
     t2=time.time()
-    print('getConnections time: ',t2-t1)
     res = conns.get(custom=True)
     sources = res['source']
     targets = res['target']
     t3=time.time()
+    print('getConnections time: ',t2-t1)
     print('get time: ',t3-t2)
+    print('global time', t3-t1)
+    return
     t4=time.time()
     # print(targets)
     mask = np.isin(pre+1,sources)
     saved_targ = post[mask]+1
-    index_mapping ={}
+    index_mapping = {}
     for index,value in enumerate(targets):
         if value in index_mapping:
             index_mapping[value].append(index)
@@ -65,8 +77,10 @@ def test_set(pre,post,weights):
     conns.set({'weight':weights[mask][found_index]})
     t7=time.time()
     print('conns set time: ',t7-t6)
-    
+
 test_set(pre,post,weights)
+new_test_set(pre,post,weights)
+exit(1)
 print("Connections created")
 
 nest.Simulate(100)

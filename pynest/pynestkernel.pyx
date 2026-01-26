@@ -238,8 +238,6 @@ cdef class NESTEngine:
 
         cdef Datum* dat = (addr_tok(self.pEngine.OStack.top())).datum()
 
-        # print("pop")
-        # print(custom)
         ret = sli_datum_to_object(dat, custom)
 
         self.pEngine.OStack.pop()
@@ -516,13 +514,18 @@ cdef inline object sli_datum_to_object(Datum* dat, cbool custom=False):
     elif datum_type == SLI_TYPE_ARRAY:
         ret = sli_array_to_object(<ArrayDatum*> dat, custom)
     elif datum_type == SLI_TYPE_DICTIONARY:
-        # print("dict")
         ret = sli_dict_to_object(<DictionaryDatum*> dat, custom)
     elif datum_type == SLI_TYPE_CONNECTION:
-        # print("conn")
-        datum = SLIDatum()
-        (<SLIDatum> datum)._set_datum(<Datum*> new ConnectionDatum(deref(<ConnectionDatum*> dat)), SLI_TYPE_CONNECTION.decode())
-        ret = nest.SynapseCollection(datum)
+        if (custom == True):
+            ret = {
+                'source': (<ConnectionDatum*>dat).get_source_node_id(),
+                'target': (<ConnectionDatum*>dat).get_target_node_id(),
+                'weight': (<ConnectionDatum*>dat).get_weight()
+            }
+        else:
+            datum = SLIDatum()
+            (<SLIDatum> datum)._set_datum(<Datum*> new ConnectionDatum(deref(<ConnectionDatum*> dat)), SLI_TYPE_CONNECTION.decode())
+            ret = nest.SynapseCollection(datum)
     elif datum_type == SLI_TYPE_VECTOR_INT:
         ret = sli_vector_to_object[sli_vector_int_ptr_t, long](<IntVectorDatum*> dat)
     elif datum_type == SLI_TYPE_VECTOR_DOUBLE:
@@ -552,15 +555,9 @@ cdef inline object sli_datum_to_object(Datum* dat, cbool custom=False):
 
 # This is a really slight improvement than the normal, custom, one
 cdef inline object sli_array_to_object_numpy(ArrayDatum* dat, cbool custom=False):
-    # --- 1. DECLARATIONS (Must be at the very top) ---
     cdef size_t n = dat.size()
     cdef Token* tok
-    cdef ConnectionDatum* c_ptr
     cdef size_t i
-    
-    # Declare the NumPy array variables here (typed, but empty for now)
-    # We use 'object' or specific ndarray types. 
-    # To be safe and fast, we declare the memory views mostly.
     
     # Typed arrays
     cdef cnumpy.ndarray[long, ndim=1] sources
@@ -568,28 +565,18 @@ cdef inline object sli_array_to_object_numpy(ArrayDatum* dat, cbool custom=False
     cdef cnumpy.ndarray[double, ndim=1] weights
     cdef cnumpy.ndarray[double, ndim=1] delays
 
-    # Memory views (This is where the speed comes from)
+    # To be safe and fast, we declare the memory views mostly.
+    # Memory views
     cdef long[:] s_view
     cdef long[:] t_view
     cdef double[:] w_view
     cdef double[:] d_view
-
-    # Variables for the slow path (heuristic optimization)
-    # cdef cnumpy.ndarray d_arr_slow
-    # cdef double[:] d_view_slow
-    # cdef cnumpy.ndarray l_arr_slow
-    # cdef long[:] l_view_slow
-    # cdef Token* save_tok
-    # cdef bint fail_flag
-    
-    # --- 2. LOGIC START ---
     
     if n == 0:
         return {}
 
     tok = dat.begin()        
 
-    # Initialize the arrays now (Allocation)
     sources = numpy.empty(n, dtype=numpy.int64)
     targets = numpy.empty(n, dtype=numpy.int64)
     weights = numpy.empty(n, dtype=numpy.float64)
@@ -603,7 +590,6 @@ cdef inline object sli_array_to_object_numpy(ArrayDatum* dat, cbool custom=False
 
     for i in range(n):
         tmp_obj = sli_datum_to_object(tok.datum(), custom)
-
         # Fast write via view
         s_view[i] = tmp_obj["source"]
         t_view[i] = tmp_obj["target"]

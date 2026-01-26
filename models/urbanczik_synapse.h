@@ -193,6 +193,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 private:
   // data members of each connection
   double weight_;

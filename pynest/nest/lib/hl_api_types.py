@@ -26,6 +26,7 @@ Classes defining the different PyNEST types
 import json
 import numbers
 from math import floor, log
+from line_profiler import profile
 
 import numpy
 
@@ -647,7 +648,7 @@ class SynapseCollection:
     A SynapseCollection is created by the :py:func:`.GetConnections` function.
     """
 
-    _datum = None
+    _datum: list[kernel.SLIDatum] | None = None
 
     def __init__(self, data):
         if isinstance(data, list):
@@ -933,6 +934,7 @@ class SynapseCollection:
 
         return final_result
 
+    @profile
     def set(self, params=None, **kwargs):
         """
         Set the parameters of the connections to `params`.

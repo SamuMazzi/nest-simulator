@@ -149,6 +149,11 @@ public:
     weight_ = w;
   }
 
+  double get_weight() const
+  {
+    return weight_;
+  }
+
 private:
   double weight_; //!< connection weight
 };
