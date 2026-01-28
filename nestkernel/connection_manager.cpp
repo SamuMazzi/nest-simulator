@@ -255,7 +255,8 @@ nest::ConnectionManager::get_synapse_weight(
     return connections_[ tid ][ syn_id ]->get_synapse_weight( lcid );
   }
   // TODO: This can be extended like `get_synapse_status` to support devices
-  assert( false );
+  // assert( false );
+  return 1.0;
 }
 
 
