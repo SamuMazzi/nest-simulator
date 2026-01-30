@@ -20,11 +20,10 @@ print("Get connections:", end-start)
 def test_set():
     for idp in (id_pyr.astype(int) + 1):
         #print(idp)
-        conn = nest.GetConnections(neurons) # node_collections[pop_name_full][idp-1])
-        res = conn.get(custom=True)
-        source = res["source"] #nest.GetStatus(conn, 'source')
-        targ = res["target"] #nest.GetStatus(conn, 'target')
-        ww = res["weight"] #nest.GetStatus(conn, 'weight')
+        conn = nest.GetConnections(neurons, custom=True) # node_collections[pop_name_full][idp-1])
+        source = conn["source"] #nest.GetStatus(conn, 'source')
+        targ = conn["target"] #nest.GetStatus(conn, 'target')
+        ww = conn["weight"] #nest.GetStatus(conn, 'weight')
         mask = (pre==idp)
         saved_targ = post[mask]
         index_mapping ={}

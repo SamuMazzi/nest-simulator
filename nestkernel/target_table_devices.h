@@ -193,6 +193,15 @@ public:
     const size_t lcid );
 
   /**
+   * Sets synapse weight of connection from neuron to device.
+   */
+  void set_synapse_weight_to_device( const size_t tid,
+    const size_t source_node_id,
+    const synindex syn_id,
+    const size_t lcid,
+    const double weight );
+
+  /**
    * Sets synapse status of connection from device to neuron.
    */
   void set_synapse_status_from_device( const size_t tid,
@@ -201,6 +210,15 @@ public:
     ConnectorModel& cm,
     const DictionaryDatum& dict,
     const size_t lcid );
+
+  /**
+   * Sets synapse weight of connection from device to neuron.
+   */
+  void set_synapse_weight_from_device( const size_t tid,
+    const size_t ldid,
+    const synindex syn_id,
+    const size_t lcid,
+    const double weight );
 
   /**
    * Checks if the device has any connections in this thread
@@ -227,6 +245,16 @@ TargetTableDevices::set_synapse_status_from_device( const size_t tid,
   const size_t lcid )
 {
   target_from_devices_[ tid ][ ldid ][ syn_id ]->set_synapse_status( lcid, dict, cm );
+}
+
+inline void
+TargetTableDevices::set_synapse_weight_from_device( const size_t tid,
+  const size_t ldid,
+  const synindex syn_id,
+  const size_t lcid,
+  const double weight )
+{
+  target_from_devices_[ tid ][ ldid ][ syn_id ]->set_synapse_weight( lcid, weight );
 }
 
 inline void

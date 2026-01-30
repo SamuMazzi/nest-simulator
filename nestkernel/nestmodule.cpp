@@ -362,6 +362,53 @@ NestModule::Cva_CFunction::execute( SLIInterpreter* i ) const
 }
 
 void
+NestModule::SetWeights_aaFunction::execute( SLIInterpreter* i ) const
+{
+  i->assert_stack_load( 2 );
+
+  ArrayDatum weights = getValue< ArrayDatum >( i->OStack.top() );
+  ArrayDatum conn_a = getValue< ArrayDatum >( i->OStack.pick( 1 ) );
+
+  if ( ( weights.size() != 1 ) and ( weights.size() != conn_a.size() ) )
+  {
+    throw RangeCheck();
+  }
+  if ( weights.size() == 1 ) // Broadcast
+  {
+    DoubleDatum new_weight = getValue< DoubleDatum >( weights[ 0 ] );
+    const size_t n_conns = conn_a.size();
+    for ( size_t con = 0; con < n_conns; ++con )
+    {
+      ConnectionDatum con_id = getValue< ConnectionDatum >( conn_a[ con ] );
+      kernel().connection_manager.set_synapse_weight( con_id.get_source_node_id(),
+        con_id.get_target_node_id(),
+        con_id.get_target_thread(),
+        con_id.get_synapse_model_id(),
+        con_id.get_port(),
+        new_weight );
+    }
+  }
+  else
+  {
+    const size_t n_conns = conn_a.size();
+    for ( size_t con = 0; con < n_conns; ++con )
+    {
+      DoubleDatum new_weight = getValue< DoubleDatum >( weights[ con ] );
+      ConnectionDatum con_id = getValue< ConnectionDatum >( conn_a[ con ] );
+      kernel().connection_manager.set_synapse_weight( con_id.get_source_node_id(),
+        con_id.get_target_node_id(),
+        con_id.get_target_thread(),
+        con_id.get_synapse_model_id(),
+        con_id.get_port(),
+        new_weight );
+    }
+  }
+
+  i->OStack.pop( 2 );
+  i->EStack.pop();
+}
+
+void
 NestModule::SetStatus_aaFunction::execute( SLIInterpreter* i ) const
 {
   i->assert_stack_load( 2 );
@@ -2061,6 +2108,7 @@ NestModule::init( SLIInterpreter* i )
   i->createcommand( "SetStatus_CD", &setstatus_CDfunction );
   i->createcommand( "SetStatus_aa", &setstatus_aafunction );
   i->createcommand( "SetKernelStatus", &setkernelstatus_Dfunction );
+  i->createcommand( "SetWeights_aa", &setweights_aafunction );
 
   i->createcommand( "GetStatus_g", &getstatus_gfunction );
   i->createcommand( "GetStatus_i", &getstatus_ifunction );

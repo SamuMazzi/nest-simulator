@@ -341,6 +341,36 @@ public:
   } setstatus_aafunction;
 
   /** @BeginDocumentation
+   *  Name: SetWeights - sets the value of properties of a node, connection, or object
+   *
+   *  Synopsis:
+   *  node_id   dict SetStatus -> -
+   *  conn  dict SetStatus -> -
+   *  obj   dict SetStatus -> -
+   *
+   *  Description:
+   *  SetStatus changes properties of a node (specified by its node_id), a connection
+   *  (specified by a connection object), or an object as used in object-oriented
+   *  programming in SLI (see cvo for more). Properties can be inspected with GetStatus.
+   *
+   *  Note that many properties are read-only and cannot be changed.
+   *
+   *  Examples:
+   *  /dc_generator Create /dc_gen Set  %Creates a dc_generator, which is a node
+   *  dc_gen GetStatus info %view properties (amplitude is 0)
+   *  dc_gen << /amplitude 1500. >> SetStatus
+   *  dc_gen GetStatus info % amplitude is now 1500
+   *
+   *  Author: docu by Samuele Mazzi
+   */
+
+  class SetWeights_aaFunction : public SLIFunction
+  {
+  public:
+    void execute( SLIInterpreter* ) const override;
+  } setweights_aafunction;
+
+  /** @BeginDocumentation
    *  Name: SetDefaults - Set the default values for a node or synapse model.
    *  Synopsis: /modelname dict SetDefaults -> -
    *  SeeAlso: GetDefaults

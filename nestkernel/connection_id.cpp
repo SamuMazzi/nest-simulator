@@ -24,7 +24,6 @@
 
 // Includes from nestkernel:
 #include "nest_names.h"
-#include "kernel_manager.h"
 
 // Includes from sli:
 #include "integerdatum.h"
@@ -36,31 +35,25 @@ ConnectionID::ConnectionID( long source_node_id,
   long target_node_id,
   long target_thread,
   long synapse_modelid,
-  long port )
+  long port,
+  double weight )
   : source_node_id_( source_node_id )
   , target_node_id_( target_node_id )
   , target_thread_( target_thread )
   , synapse_modelid_( synapse_modelid )
   , port_( port )
+  , weight_( weight )
 {
 }
 
-ConnectionID::ConnectionID( long source_node_id, long target_thread, long synapse_modelid, long port )
+ConnectionID::ConnectionID( long source_node_id, long target_thread, long synapse_modelid, long port, double weight )
   : source_node_id_( source_node_id )
   , target_node_id_( -1 )
   , target_thread_( target_thread )
   , synapse_modelid_( synapse_modelid )
   , port_( port )
+  , weight_( weight )
 {
-}
-
-double
-ConnectionID::get_weight() const
-{
-  return kernel().connection_manager.get_synapse_weight(
-    static_cast<size_t>( target_thread_ ),  // TODO: Check these casts
-    static_cast<synindex>( synapse_modelid_ ),
-    static_cast<size_t>( port_ ) );
 }
 
 DictionaryDatum
@@ -78,6 +71,8 @@ ConnectionID::get_dict() const
   def< long >( dict, nest::names::target_thread, target_thread_ );
   // The index in the list
   def< long >( dict, nest::names::port, port_ );
+  // The weight of the connection
+  def< double >( dict, nest::names::weight, weight_ );
 
   return dict;
 }
@@ -91,6 +86,7 @@ ConnectionID::to_ArrayDatum() const
   ad.push_back( new IntegerDatum( target_thread_ ) );
   ad.push_back( new IntegerDatum( synapse_modelid_ ) );
   ad.push_back( new IntegerDatum( port_ ) );
+  ad.push_back( new DoubleDatum( weight_ ) );
   return ad;
 }
 
@@ -98,14 +94,14 @@ bool
 ConnectionID::operator==( const ConnectionID& c ) const
 {
   return source_node_id_ == c.source_node_id_ and ( target_node_id_ == c.target_node_id_ )
-    and target_thread_ == c.target_thread_ and port_ == c.port_ and ( synapse_modelid_ == c.synapse_modelid_ );
+    and target_thread_ == c.target_thread_ and port_ == c.port_ and ( synapse_modelid_ == c.synapse_modelid_ ) and weight_ == c.weight_;
 }
 
 void
 ConnectionID::print_me( std::ostream& out ) const
 {
   out << "<" << source_node_id_ << "," << target_node_id_ << "," << target_thread_ << "," << synapse_modelid_ << ","
-      << port_ << ">";
+      << port_ << "," << weight_ << ">";
 }
 
 } // namespace

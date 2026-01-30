@@ -934,6 +934,19 @@ class SynapseCollection:
 
         return final_result
 
+    def set_weights(self, weights):
+        """
+        Sets weights for a SynapseCollection.
+        """
+        # 1. Ensure weights is a list or numpy array of the right size
+        if len(weights) != self.__len__():
+            raise ValueError("Weight array size must match SynapseCollection size.")
+
+        sps(self._datum)
+        sps([x for x in weights])  # Needed to pass an ArrayDatum instead of DoubleVectorDatum (which doesn't support a lot of basic ops)
+
+        sr("SetWeights_aa")
+
     @profile
     def set(self, params=None, **kwargs):
         """

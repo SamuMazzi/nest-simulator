@@ -135,4 +135,18 @@ nest::TargetTableDevices::set_synapse_status_to_device( const size_t tid,
   }
 }
 
+inline void
+nest::TargetTableDevices::set_synapse_weight_to_device( const size_t tid,
+  const size_t source_node_id,
+  const synindex syn_id,
+  const size_t lcid,
+  const double weight )
+{
+  const size_t lid = kernel().vp_manager.node_id_to_lid( source_node_id );
+  if ( target_to_devices_[ tid ][ lid ][ syn_id ] )
+  {
+    target_to_devices_[ tid ][ lid ][ syn_id ]->set_synapse_weight( lcid, weight );
+  }
+}
+
 #endif /* TARGET_TABLE_DEVICES_IMPL_H */

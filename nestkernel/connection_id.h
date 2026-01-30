@@ -34,8 +34,8 @@ class ConnectionID
 {
 public:
   ConnectionID();
-  ConnectionID( long source_node_id, long target_node_id, long target_thread, long synapse_modelid, long port );
-  ConnectionID( long source_node_id, long target_thread, long synapse_modelid, long port );
+  ConnectionID( long source_node_id, long target_node_id, long target_thread, long synapse_modelid, long port, double weight );
+  ConnectionID( long source_node_id, long target_thread, long synapse_modelid, long port, double weight );
   ConnectionID( const ConnectionID& );
 
   DictionaryDatum get_dict() const;
@@ -55,6 +55,7 @@ protected:
   long target_thread_;
   long synapse_modelid_;
   long port_;
+  double weight_;
 };
 
 inline ConnectionID::ConnectionID()
@@ -63,6 +64,7 @@ inline ConnectionID::ConnectionID()
   , target_thread_( -1 )
   , synapse_modelid_( -1 )
   , port_( -1 )
+  , weight_( 0.0 )
 {
 }
 
@@ -72,6 +74,7 @@ inline ConnectionID::ConnectionID( const ConnectionID& cid )
   , target_thread_( cid.target_thread_ )
   , synapse_modelid_( cid.synapse_modelid_ )
   , port_( cid.port_ )
+  , weight_( cid.weight_ )
 {
 }
 
@@ -103,6 +106,12 @@ inline long
 ConnectionID::get_port() const
 {
   return port_;
+}
+
+inline double
+ConnectionID::get_weight() const
+{
+  return weight_;
 }
 
 } // namespace

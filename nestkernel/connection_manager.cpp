@@ -242,23 +242,41 @@ nest::ConnectionManager::get_status( DictionaryDatum& dict )
   def< ArrayDatum >( dict, names::connection_rules, connection_rules );
 }
 
-double
-nest::ConnectionManager::get_synapse_weight(
+void
+nest::ConnectionManager::set_synapse_weight( const size_t source_node_id,
+  const size_t target_node_id,
   const size_t tid,
   const synindex syn_id,
-  const size_t lcid ) const
+  const size_t lcid,
+  const double weight )
 {
   kernel().model_manager.assert_valid_syn_id( syn_id, kernel().vp_manager.get_thread_id() );
 
-  if ( connections_[ tid ][ syn_id ] )
-  {
-    return connections_[ tid ][ syn_id ]->get_synapse_weight( lcid );
-  }
-  // TODO: This can be extended like `get_synapse_status` to support devices
-  // assert( false );
-  return 1.0;
-}
+  const Node* source = kernel().node_manager.get_node_or_proxy( source_node_id, tid );
+  const Node* target = kernel().node_manager.get_node_or_proxy( target_node_id, tid );
 
+  // synapses from neurons to neurons and from neurons to globally
+  // receiving devices
+  if ( ( source->has_proxies() and target->has_proxies() and connections_[ tid ][ syn_id ] )
+    or ( ( source->has_proxies() and not target->has_proxies() and not target->local_receiver()
+      and connections_[ tid ][ syn_id ] ) ) )
+  {
+    connections_[ tid ][ syn_id ]->set_synapse_weight( lcid, weight );
+  }
+  else if ( source->has_proxies() and not target->has_proxies() and target->local_receiver() )
+  {
+    target_table_devices_.set_synapse_weight_to_device( tid, source_node_id, syn_id, lcid, weight );
+  }
+  else if ( not source->has_proxies() )
+  {
+    const size_t ldid = source->get_local_device_id();
+    target_table_devices_.set_synapse_weight_from_device( tid, ldid, syn_id, lcid, weight );
+  }
+  else
+  {
+    assert( false );
+  }
+}
 
 DictionaryDatum
 nest::ConnectionManager::get_synapse_status( const size_t source_node_id,
@@ -1209,7 +1227,7 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
     #ifdef ENABLE_NS_PROFILING
       const auto t_getconn_start = high_resolution_clock::now();
     #endif
-    get_connections( connectome, source_a, target_a, syn_id, synapse_label );  // 200 - 800 ns
+    get_connections( connectome, source_a, target_a, syn_id, synapse_label );
     #ifdef ENABLE_NS_PROFILING
       const auto t_getconn_end = high_resolution_clock::now();
       {
@@ -1250,11 +1268,21 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
     for (const auto& conn : connectome) {
         result.push_back(ConnectionDatum(conn));
     }
+    // This way let us achieve kind of the same performance as the previous SLI modifications, but without going so deep
+    // ArrayDatum result1;
+    // result1.reserve( connectome.size() );
+    // for (const auto& conn : connectome) {
+    //   DictionaryDatum dict = DictionaryDatum( new Dictionary );
+    //   def< long >( dict, names::source, conn.get_source_node_id() );
+    //   def< long >( dict, names::target, conn.get_target_node_id() );
+    //   def< double >( dict, names::weight, conn.get_weight() );
+    //   result1.push_back(dict);
+    // }
     connectome.clear();  // if you really need to empty it
     #ifdef ENABLE_NS_PROFILING
       const auto t_pack_end = high_resolution_clock::now();
     #endif
-    
+
     get_connections_has_been_called_ = true;
     
     #ifdef ENABLE_NS_PROFILING
@@ -1279,6 +1307,19 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
     #endif
   return result;
 }
+// Improved
+// really custom avg:       0.06560490608215332
+// custom avg:      0.06583699226379394
+// non custom avg:  0.06919792652130127
+// GetConnections time: 0.0654914379119873
+// Pop time: 0.008556127548217773
+// TODO: Testa modalità release
+// Normal:
+// really custom avg:       0.06451593399047852
+// custom avg:      0.10737558364868165
+// non custom avg:  0.16746915340423585
+// GetConnections time: 0.060462236404418945
+// Pop time: 0.012135505676269531
 
 // Helper method which removes ConnectionIDs from input deque and
 // appends them to output deque.
@@ -1439,7 +1480,7 @@ nest::ConnectionManager::get_connections_from_sources_( const size_t tid,
   {
     const size_t source_node_id = ( *s_id ).node_id;
     if ( not target.get() )
-    {
+    { // It always goes here
       target_table_devices_.get_connections( source_node_id, 0, tid, syn_id, synapse_label, conns_in_thread );
     }
     else

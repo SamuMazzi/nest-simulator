@@ -82,8 +82,6 @@ public:
   void set_status( const DictionaryDatum& ) override;
   void get_status( DictionaryDatum& ) override;
 
-  double get_synapse_weight(const size_t tid, const synindex syn_id, const size_t lcid ) const;
-
   bool valid_connection_rule( std::string );
 
   void compute_target_data_buffer_size();
@@ -230,6 +228,14 @@ public:
     const synindex syn_id,
     const size_t lcid,
     const DictionaryDatum& dict );
+
+  // aka conndatum SetWeight
+  void set_synapse_weight( const size_t source_node_id,
+    const size_t target_node_id,
+    const size_t tid,
+    const synindex syn_id,
+    const size_t lcid,
+    const double weight );
 
   /**
    * Return connections between pairs of neurons.

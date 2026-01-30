@@ -82,11 +82,6 @@ public:
   virtual size_t size() const = 0;
 
   /**
-   * Return the weight of the synapse at position lcid.
-   */
-  virtual double get_synapse_weight( const size_t lcid ) const = 0;
-
-  /**
    * Write status of the connection at position lcid to the dictionary
    * dict.
    */
@@ -97,6 +92,12 @@ public:
    * dictionary dict.
    */
   virtual void set_synapse_status( const size_t lcid, const DictionaryDatum& dict, ConnectorModel& cm ) = 0;
+
+  /**
+   * Set weight of the connection at position lcid according to the 
+   * value weight.
+   */
+  virtual void set_synapse_weight( const size_t lcid, const double weight ) = 0;
 
   /**
    * Add ConnectionID with given source_node_id and lcid to conns. If
@@ -251,14 +252,6 @@ public:
     return C_.size();
   }
 
-  double
-  get_synapse_weight( const size_t lcid  ) const override
-  {
-    assert( lcid < C_.size() );
-
-    return C_[ lcid ].get_weight();
-  }
-
   void
   get_synapse_status( const size_t tid, const size_t lcid, DictionaryDatum& dict ) const override
   {
@@ -277,6 +270,14 @@ public:
     assert( lcid < C_.size() );
 
     C_[ lcid ].set_status( dict, static_cast< GenericConnectorModel< ConnectionT >& >( cm ) );
+  }
+
+  void
+  set_synapse_weight( const size_t lcid, const double weight ) override
+  {
+    assert( lcid < C_.size() );
+
+    C_[ lcid ].set_weight( weight );
   }
 
   void
@@ -306,8 +307,9 @@ public:
         const size_t current_target_node_id = C_[ lcid ].get_target( tid )->get_node_id();
         if ( current_target_node_id == target_node_id or target_node_id == 0 )
         {
+          const double weight = C_[ lcid ].get_weight();
           conns.push_back(
-            ConnectionDatum( ConnectionID( source_node_id, current_target_node_id, tid, syn_id_, lcid ) ) );
+            ConnectionDatum( ConnectionID( source_node_id, current_target_node_id, tid, syn_id_, lcid, weight ) ) );
         }
       }
     }
@@ -329,8 +331,9 @@ public:
         if ( std::find( target_neuron_node_ids.begin(), target_neuron_node_ids.end(), current_target_node_id )
           != target_neuron_node_ids.end() )
         {
+          const double weight = C_[ lcid ].get_weight();
           conns.push_back(
-            ConnectionDatum( ConnectionID( source_node_id, current_target_node_id, tid, syn_id_, lcid ) ) );
+            ConnectionDatum( ConnectionID( source_node_id, current_target_node_id, tid, syn_id_, lcid, weight ) ) );
         }
       }
     }
