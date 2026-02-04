@@ -934,7 +934,7 @@ class SynapseCollection:
 
         return final_result
 
-    def set_weights(self, weights):
+    def _set_weights(self, weights):
         """
         Sets weights for a SynapseCollection.
         """
@@ -947,7 +947,6 @@ class SynapseCollection:
 
         sr("SetWeights_aa")
 
-    @profile
     def set(self, params=None, **kwargs):
         """
         Set the parameters of the connections to `params`.
@@ -976,7 +975,6 @@ class SynapseCollection:
         --------
         get
         """
-        # import time
 
         # This was added to ensure that the function is a nop (instead of,
         # for instance, raising an exception) when applied to an empty
@@ -995,6 +993,9 @@ class SynapseCollection:
             raise TypeError("must either provide params or kwargs, but not both.")
 
         if isinstance(params, dict):
+            if (len(params) == 1 and "weight" in params):
+                self._set_weights(params["weight"])
+                return
             node_params = self[0].get()
             contains_list = [
                 is_iterable(vals) and key in node_params and not is_iterable(node_params[key])
@@ -1012,24 +1013,12 @@ class SynapseCollection:
                         for i, temp_dict in enumerate(temp_param):
                             temp_dict[key] = vals[i]
                 params = temp_param
-        # a0 = time.time()
         params = broadcast(params, self.__len__(), (dict,), "params")
-        # a = time.time()
         sps(self._datum)
-        # b = time.time()
         sps(params)
-        # c = time.time()
 
         sr("2 arraystore")
-        # d = time.time()
         sr("Transpose { arrayload pop SetStatus } forall")
-        # e = time.time()
-        # print("SynapseCollection.set performance:")
-        # print("  broadcast(params):", a - a0)
-        # print("  sps(self._datum):", b - a) # a little less than ~2/5 of time
-        # print("  sps(params):", c - b)  # ~2/5 of time
-        # print("  sr(arraystore):", d - c)
-        # print("  sr(SetStatus):", e - d)  # almost half of time
 
     def disconnect(self):
         """
