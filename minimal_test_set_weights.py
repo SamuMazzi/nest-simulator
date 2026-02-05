@@ -7,9 +7,13 @@ nest.SetKernelStatus({
                         # "local_num_threads": 24,
                      })
 
+CUSTOM_MODEL = True
 N_FOR = 4000
 N_NEURONS = 10_000
-neurons=nest.Create('ht_neuron', N_NEURONS)
+if CUSTOM_MODEL:
+    neuron_model_name="hill_tononi_neuron_nestml__with_stdp_tsodyks_Tartarini_synapse_nestml"
+    nest.Install("CustomModels/target/ht_tso_stdp_module")
+neurons=nest.Create(neuron_model_name if CUSTOM_MODEL else 'ht_neuron', N_NEURONS)
 np.random.seed(42)
 seed = np.random.randint(1, N_NEURONS+1)
 pre = np.array([(x * seed) % N_NEURONS for x in range(N_FOR)])
@@ -18,7 +22,17 @@ post = np.array([(x * seed + 2) % N_NEURONS for x in range(N_FOR)])
 # post = np.random.randint(1, N_NEURONS+1, N_FOR)
 weights = np.random.uniform(0.001, 1, N_FOR)
 for i in range(N_FOR):
-    nest.Connect(neurons[pre[i]],neurons[post[i]],{'rule':'all_to_all'},{'synapse_model':'stdp_synapse','weight':weights[i],'delay':1,'receptor_type':1})
+    nest.Connect(
+        neurons[pre[i]],
+        neurons[post[i]],
+        {'rule':'all_to_all'},
+        {
+            'synapse_model':'stdp_tsodyks_Tartarini_synapse_nestml__with_hill_tononi_neuron_nestml' if CUSTOM_MODEL else 'stdp_synapse',
+            'weight':weights[i],
+            'delay':1,
+            'receptor_type':1
+        }
+    )
 
 
 # N_FOR = 4000
@@ -71,13 +85,14 @@ def test_set(pre,post,weights, getConnCustom):
         conns=nest.GetConnections(source=neurons[pre])
     np.random.seed(21)
     weights = np.random.uniform(0.001, 1, N_FOR)
-    # conns.set_weights(weights)  # [mask][found_index]
     # conns=nest.GetConnections(source=neurons[pre], custom=getConnCustom)
     # res = conns.get(custom=True) if not getConnCustom else conns
     # new_weights = res['weight']
     # print("new", new_weights)
-    conns.set({'weight':weights})
-    conns=nest.GetConnections(source=neurons[pre], custom=getConnCustom)
+    conns=nest.GetConnections(source=neurons[pre], custom=False)
+    # conns.set({'weight':weights})
+    conns.set_weights(weights)  # [mask][found_index]
+    print("Types", type(conns), type(conns.set_weights), type(weights))
     res = conns.get(custom=True) if not getConnCustom else conns
     old_weights = res['weight']
     print("old", old_weights)

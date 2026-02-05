@@ -45,7 +45,29 @@ ConnectionID::ConnectionID( long source_node_id,
   , weight_( weight )
 {
 }
+ConnectionID::ConnectionID( long source_node_id,
+  long target_node_id,
+  long target_thread,
+  long synapse_modelid,
+  long port )
+  : source_node_id_( source_node_id )
+  , target_node_id_( target_node_id )
+  , target_thread_( target_thread )
+  , synapse_modelid_( synapse_modelid )
+  , port_( port )
+  , weight_( 0.0 )
+{
+}
 
+ConnectionID::ConnectionID( long source_node_id, long target_thread, long synapse_modelid, long port )
+  : source_node_id_( source_node_id )
+  , target_node_id_( -1 )
+  , target_thread_( target_thread )
+  , synapse_modelid_( synapse_modelid )
+  , port_( port )
+  , weight_( 0.0 )
+{
+}
 ConnectionID::ConnectionID( long source_node_id, long target_thread, long synapse_modelid, long port, double weight )
   : source_node_id_( source_node_id )
   , target_node_id_( -1 )

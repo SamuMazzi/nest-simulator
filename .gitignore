@@ -84,3 +84,6 @@ doc*
 pynest
 sli
 spike_*
+
+CustomModels/target/
+CustomModels/custom_models/

@@ -35,7 +35,9 @@ class ConnectionID
 public:
   ConnectionID();
   ConnectionID( long source_node_id, long target_node_id, long target_thread, long synapse_modelid, long port, double weight );
+  ConnectionID( long source_node_id, long target_node_id, long target_thread, long synapse_modelid, long port );
   ConnectionID( long source_node_id, long target_thread, long synapse_modelid, long port, double weight );
+  ConnectionID( long source_node_id, long target_thread, long synapse_modelid, long port );
   ConnectionID( const ConnectionID& );
 
   DictionaryDatum get_dict() const;
