@@ -26,7 +26,6 @@ Classes defining the different PyNEST types
 import json
 import numbers
 from math import floor, log
-from line_profiler import profile
 
 import numpy
 
@@ -61,13 +60,6 @@ __all__ = [
     "SynapseCollection",
     "to_json",
 ]
-
-
-COLLECT_PERFORMANCE = False
-
-if COLLECT_PERFORMANCE:
-    import time
-
 
 
 def CreateParameter(parametertype, specs):
@@ -894,26 +886,16 @@ class SynapseCollection:
         else:
             raise TypeError("keys should be either a string or an iterable")
         
-        if COLLECT_PERFORMANCE:
-            sps_start = time.time()
         sps(self._datum)
-        if COLLECT_PERFORMANCE:
-            sps_end = time.time()
         sr(cmd)
         
-        if COLLECT_PERFORMANCE:
-            sr_end = time.time()
         result = spp(custom=custom)
-        if COLLECT_PERFORMANCE:
-            spp_end = time.time()
 
         if custom:
             return result
 
         # Need to restructure the data.
         final_result = restructure_data(result, keys)
-        if COLLECT_PERFORMANCE:
-            restructure_end = time.time()
         if pandas_output:
             index = self.get("source") if self.__len__() > 1 else (self.get("source"),)
             if is_literal(keys):
@@ -921,15 +903,6 @@ class SynapseCollection:
             final_result = pandas.DataFrame(final_result, index=index)
         elif output == "json":
             final_result = to_json(final_result)
-
-        if COLLECT_PERFORMANCE:
-            output_end = time.time()
-
-            print("sps time:", sps_end - sps_start, "seconds")
-            print("sr result time:", sr_end - sps_start, "seconds")
-            print("spp result time:", spp_end - sr_end, "seconds")
-            print("Restructure data time:", restructure_end - spp_end, "seconds")
-            print("Output formatting time:", output_end - restructure_end, "seconds")
 
         return final_result
 
@@ -993,6 +966,7 @@ class SynapseCollection:
 
         if isinstance(params, dict):
             if (len(params) == 1 and "weight" in params):
+                # Optimization for only weight setting
                 self._set_weights(params["weight"])
                 return
             node_params = self[0].get()
