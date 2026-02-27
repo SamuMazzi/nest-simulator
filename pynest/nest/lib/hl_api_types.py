@@ -919,7 +919,7 @@ class SynapseCollection:
 
         sr("SetWeights_aa")
 
-    def set(self, params=None, **kwargs):
+    def set(self, params=None, custom=False, **kwargs):
         """
         Set the parameters of the connections to `params`.
 
@@ -965,7 +965,7 @@ class SynapseCollection:
             raise TypeError("must either provide params or kwargs, but not both.")
 
         if isinstance(params, dict):
-            if (len(params) == 1 and "weight" in params):
+            if (custom and len(params) == 1 and "weight" in params):
                 # Optimization for only weight setting
                 self._set_weights(params["weight"])
                 return
