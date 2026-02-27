@@ -40,6 +40,7 @@ from .hl_api_helper import (
     restructure_data,
 )
 from .hl_api_parallel_computing import Rank
+from .hl_api_simulation import GetKernelStatus
 
 try:
     import pandas
@@ -866,7 +867,7 @@ class SynapseCollection:
         # We also return if the network is empty after a ResetKernel.
         # This avoids problems with invalid SynapseCollections.
         # See also #3100.
-        if self.__len__() == 0:
+        if self.__len__() == 0 or GetKernelStatus("network_size") == 0:
             if pandas_output:
                 return pandas.DataFrame()
             elif output == "json":
@@ -953,7 +954,7 @@ class SynapseCollection:
         # SynapseCollection. We also return if the network is empty after a
         # reset kernel. This avoids problems with invalid SynapseCollections.
         # See also #3100.
-        if self.__len__() == 0:
+        if self.__len__() == 0 or GetKernelStatus("network_size") == 0:
             return
 
         if isinstance(params, (list, tuple)) and self.__len__() != len(params):
